@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main, "integration/**"]
+    branches: [main]
   pull_request:
 
 permissions:
@@ -40,11 +40,22 @@ jobs:
         run: |
           shellcheck --version
           shellcheck tools/*.sh
-      - name: Validate the example config
+      - name: Check the example config
+        shell: bash
         run: |
-          tools/load-config.sh --config config/stack.example.yaml --check
-          tools/load-config.sh --config config/stack.example.yaml --stdout > "$RUNNER_TEMP/stack.env"
-          bash -c 'set -eu; . "$1"; test "$STACK_ID" = acme; test -n "$PR_MONITOR_REPOS"' _ "$RUNNER_TEMP/stack.env"
+          f=config/stack.example.yaml
+          yq -e '.' "$f" >/dev/null
+          test "$(yq '[.repos[] | select(.kind == "hub")] | length' "$f")" -eq 1
+          yq -e '(.repos | length) > 0 and (.repos | all_c(.name != null and .path != null and .remote != null and .main_branch != null and .kind != null))' "$f" >/dev/null
+          for k in stack.id stack.name hub.prds_dir hub.decisions_dir hub.backlog_file \
+                   delivery.integration_branch_per_feature delivery.owner_merges_main conventions \
+                   memory.engram_project memory.topic_prefix \
+                   language.owner_conversation language.artifacts language.app_copy language.app_copy_rules \
+                   models.{ideas,tech_lead,senior,mid,junior}.{model,effort} \
+                   orca.chat_ui orca.agent_sleep orca.agent_dashboard \
+                   monitors.pr_interval_seconds monitors.watch_interval_seconds monitors.pr_author monitors.merged_window_days; do
+            yq -e ".$k != null" "$f" >/dev/null || { echo "missing key: $k"; exit 1; }
+          done
       - name: Monitors print their help
         run: |
           tools/pr-monitor.sh --help

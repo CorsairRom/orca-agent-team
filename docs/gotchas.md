@@ -1,134 +1,145 @@
 # Known gotchas
 
-Behaviour of Orca and Claude Code that this setup depends on, or works around. Each entry says what happens, why it
-matters here, and what to do. They were observed on Orca 1.4.243 to 1.4.245 with Claude Code 2.1; re-check them
-after an upgrade. A point that was not reproduced is marked `(unverified)`.
+Behaviour of Orca and Claude Code that this setup depends on, or works around. Each entry states the mechanism, the
+source, and what to do. The entries hold for the minimum versions in the [README](../README.md#prerequisites);
+re-check them after an upgrade. A point no `--help` text, `man` page or the Orca orchestration skill
+(`orca skills get orchestration --full`) confirms is marked `(unverified)`.
 
 ## Mailbox and Runs
 
-### Orca nudges an idle chat when its Run gets mail
+### Orca prompts an idle chat when its Run gets mail
 
-An idle chat that is bound to a Run receives a new prompt from Orca when mail arrives in that Run, of the form
-"You have N orchestration message(s). Run `orca orchestration check --run <run-id>`". This was observed repeatedly
-on coordinator chats, in chat and terminal mode, and after a reopen.
+When mail arrives in a Run, Orca injects a prompt into the idle chat bound to that Run. An idle chat with no
+background command wakes on it; the chat needs no process of its own to wake up. Whether the prompt also reaches a
+chat that the Chat UI's idle sweep has closed is `(unverified)`.
 
-**What to do:** there is no background mailbox wait to keep alive or re-arm. On a nudge, the chat reads the whole
-Delivery with `orca orchestration check --run <own run id> --json`, acts on every message, and acknowledges the
-batch with `orca orchestration check --run <own run id> --ack <deliveryId> --json`. Repeat the plain check with the
-previous `--ack` until `deliveryId` is `null`. A Run replays the same Delivery until it is acknowledged, so an
-unacknowledged batch hides newer mail.
+**What to do:** follow [the mailbox rule](../agents/README.md#the-mailbox-rule), which quotes the prompt.
 
-### Long background commands are killed by the harness
+### A Run replays a Delivery until it is acknowledged
 
-Claude Code's Bash tool stops a background command at its time limit (30 minutes by default). A chat that relies on
-a background command to stay alive, or to wake it later, loses it silently.
+A plain `check` returns the Run's oldest unacknowledged batch, the Delivery, whole: it is never filtered by type.
+The same Delivery comes back on every `check` until it is acknowledged with `--ack <deliveryId>`, so an
+unacknowledged batch hides newer mail. `--peek` and `--all` show rows but return no `deliveryId`; take it from a
+plain `check` (`orca orchestration check --help`).
 
-**What to do:** keep long-lived processes out of the chats. The monitors run in tmux sessions; the mailbox relies on
-Orca's nudge, not on a background wait.
+**What to do:** process every message, then acknowledge, as [the mailbox rule](../agents/README.md#the-mailbox-rule)
+says.
 
-### A mailbox wait outlives its Bash timeout
+### A Run is bound to the session that created it
 
-`orca orchestration check --wait --timeout-ms <n>` blocks for up to `<n>` milliseconds. If the Bash call that runs
-it has a shorter timeout, Bash kills it first, and the wait's result, including the `deliveryId`, is lost.
+A Run is bound to the session that created it; another session cannot read its mailbox or dispatch under it.
+`run-create` creates and binds a Run, and `run-current` shows the Run bound to the calling coordinator
+(`orca orchestration run-create --help`, `run-current --help`); that another session is refused is `(unverified)`. A
+subagent's shell inherits its parent's identity, so a subagent that runs `run-create` creates a Run of its parent
+`(unverified)`.
 
-**What to do:** when a step does wait (for example while proving the round trip), give the Bash call a timeout above
-`--timeout-ms`: `--timeout-ms 540000` with a Bash timeout of `600000`. In the foreground, Claude Code's Bash
-timeout is at most 600000 ms, so keep foreground waits under it.
+**What to do:** each coordinator creates its own Run from its own chat, in the first turn of its after-start
+checklist, and writes the id to its run-id file. The chat that installs the team creates no Run for them.
 
-### A Run belongs to the session that created it
+### Long background commands end with the Bash tool's limit
 
-A Run is bound to the identity that created it. A Run created in a chat is bound to that chat session: another
-session reading its mailbox gets `This caller is not bound to Run ...`. A Run created under a terminal identity
-cannot be consumed from a chat, so a resumed chat cannot use a Run created under another surface. A subagent's shell
-inherits its parent's identity, so a subagent that runs `run-create` creates a Run coordinated by its parent.
+Claude Code's Bash tool stops a background command at its time limit, and the Chat UI's idle sweep ends every
+process of the chat `(unverified)`. A chat that relies on a background command to stay alive, or to wake it later,
+loses it without notice.
 
-**What to do:** each coordinator creates its own Run from its own chat, and stores the id in its Run id file.
-Moving a coordinator between a terminal and a chat needs a new Run: create it from the new surface, write its id,
-and tell the other coordinator. Move only when no dispatch is live or pending in the old Run
-(`orca orchestration worker-list --run <old run id> --json`), because workers keep mailing the Run they were
-started in.
+**What to do:** keep long-lived processes out of the chats. The monitors run in tmux sessions; the mailbox needs no
+background command (see the first entry).
 
 ### Nesting depth is 1
 
-A worker cannot start its own worker. The attempt is refused with
-`nested_worker_depth_exceeded: Sub-worker dispatch is not permitted at depth 2 (max 1)`.
+A worker cannot start its own worker. The attempt is refused with `nested_worker_depth_exceeded`, and creating
+another Run does not reset the depth (the Orca orchestration skill). The full refusal text is `(unverified)`.
 
 **What to do:** this is why the Tech-lead is not a worker of Ideas. Both are top-level coordinators with their own
 Runs, and they talk Run to Run.
 
-### Unacknowledged mail and senders without an Orca identity
+### A tmux session sends under the identity it was started with
 
-- `--peek` and `--all` show rows but return no `deliveryId`; take it from a plain `check`.
-- `--types` is only the wake condition of `--wait`; a Delivery is never filtered by type.
-- A message sent from a shell with no Orca identity, such as a monitor in tmux, may show another terminal as its
-  sender. The subject prefix (`[PR monitor]`, `[Worker watch]`, `[Bootstrap]`) is what identifies the source.
+`orca orchestration send` takes its sender from the `ORCA_*` variables of its environment `(unverified)`. A
+process in a new tmux session starts from the server's global environment, which tmux copies from whoever started
+the server: another chat, or no Orca process at all (`man tmux`, "GLOBAL AND SESSION ENVIRONMENT"). A monitor in
+such a session sends as that other chat, or is refused with `no_active_sender_terminal` `(unverified)`.
+
+**What to do:** the Tech-lead, a long-lived chat, starts the monitors and passes every `ORCA_*` variable of its own
+environment with `tmux new-session -e` ([start lines](../tools/README.md#start)); the alive check's sender must be
+the Tech-lead's ([Check the sender](../tools/README.md#check-the-sender)). Identify the source of a message by its
+subject prefix: `[PR monitor]`, `[Worker watch]`, `[Bootstrap]`.
+
+### A worker sends only within its coordinator's Run
+
+A dispatched worker's `send --to run:<another run>` is refused with `dispatch_run_mismatch`: a Dispatch belongs to
+one Run `(unverified)`.
+
+**What to do:** messages between Ideas and the Tech-lead go chat to chat, through their Runs, never through a
+worker.
 
 ### A settled worker cannot be reused
 
-After `worker_done` the dispatch is complete: `send --to dispatch:<settled id>` is refused with `dispatch_inactive`.
-A follow-up needs a new `orca orchestration worker-start --worktree path:<absolute path> ...` on the same worktree,
-without `--name`, `--repo` or `--base-branch`, which Orca refuses for an existing worktree.
+After `worker_done` the dispatch is complete: `send --to dispatch:<settled id>` is refused with `dispatch_inactive`
+`(unverified)`.
+
+**What to do:** a follow-up needs a new `orca orchestration worker-start --worktree path:<absolute path> ...` on the
+same worktree, without `--name`, `--repo` or `--base-branch`, which Orca refuses for an existing worktree
+(`orca orchestration worker-start --help`).
 
 ## Chats and their settings
 
 ### Agent sleep must stay off
 
-Orca's experimental «Agent sleep» stops idle agents, and a slept coordinator is not woken by mail. Ideas and the
-Tech-lead are idle most of the time, waiting for mail, so with «Agent sleep» on a Run can stall silently. This is
-documented upstream and was not reproduced here `(unverified)`.
+Orca's "Agent sleep" setting stops idle agents, and mail does not wake a slept agent `(unverified)`. Ideas and the
+Tech-lead are idle most of the time, waiting for mail.
 
-**What to do:** keep «Agent sleep» off in the Orca settings (`orca.agent_sleep: false` in the config).
+**What to do:** keep "Agent sleep" off in the Orca settings (`orca.agent_sleep: false` in the config).
 
-### The Chat UI stops an idle chat after 30 minutes
+### The Chat UI stops an idle chat
 
-Separately from «Agent sleep», Orca stops a chat's Claude process after 30 minutes idle. It cannot be configured.
-Anything running inside the chat's process, such as a background command, ends with it.
+Separately from "Agent sleep", Orca stops a chat's Claude process after it has been idle for a while; the
+30-minute limit, and that it is not configurable, are `(unverified)`. Anything running inside the chat's process
+ends with it. The chat's transcript, its Run and its run-id file survive `(unverified)`.
 
-**What to do:** nothing long-lived inside a chat (see above). The chat's state is its transcript, its Run and its
-Run id file, which survive the sweep. Whether a nudge always brings a swept chat back is `(unverified)`; when a chat
-does not react to mail, the human sends it a prompt in its existing tab.
+**What to do:** nothing long-lived inside a chat. When a chat does not react to mail, the human sends its resume
+prompt in its existing tab ([reboot](./reboot.md#what-to-do)).
 
 ### A chat relaunches with its saved effort
 
-Orca saves the options of each chat. Once a message is sent after using the chat's model or effort picker, Orca
-stores that effort in its session record and passes it as `--effort` on every relaunch. The `--effort` flag beats
-`~/.claude/settings.json`. The observed precedence in Claude Code is: `CLAUDE_CODE_EFFORT_LEVEL` > an in-session
-`/effort` or `/model` pick > the `--effort` flag > `~/.claude/settings.json` (`modelSettings.<model>.effortLevel`,
-then `effortLevel`) > the model's default. A chat adopted from a terminal starts with no saved effort.
+Orca saves the options of each chat. After a message is sent with an effort picked in the chat, Orca stores that
+effort and passes it as `--effort` on every relaunch `(unverified)`. The effort precedence in Claude Code is
+`(unverified)`: `CLAUDE_CODE_EFFORT_LEVEL` > an in-session `/effort` or `/model` pick > the `--effort` flag >
+`~/.claude/settings.json` (`modelSettings.<model>.effortLevel`, then `effortLevel`) > the model's default.
 
-**What to do:** set the effort you want at launch (`orca agent launch --model <id> --effort <level>`), and after a
-relaunch read the real flags of the process instead of trusting the label:
+**What to do:** set the effort at launch (`orca agent launch --model <id> --effort <level>`), and after a relaunch
+read the process's real flags instead of trusting the label (Linux only, it reads `/proc`):
 
 ```bash
 for p in $(pgrep -f claude); do readlink /proc/$p/cwd; tr '\0' ' ' < /proc/$p/cmdline | grep -oE -- '--(effort|model) [^ ]+'; done
 ```
 
-This reads `/proc`, so it works on Linux only. Orca's own record (`worker-show --json`) is not proof of the process
-arguments. Workers get an explicit `--effort` from `worker-start`, and it reached the process on the workers checked.
+Orca's own record (`worker-show --json`) is not proof of the process arguments.
 
 ### The chat picker cannot set the effort of a raw model id
 
 The chat picker builds its models and efforts from Claude Code's model list, which names some models by an alias.
 A chat on a model the picker knows only by its raw id gets no extended efforts, and `/effort <level>` is rejected
-with "`<value>` is not an available `<option>` for this chat session." Observed on Orca 1.4.243.
+as not available for the chat session `(unverified)`.
 
-**What to do:** pass the effort at launch with `--effort`, as above, instead of picking it in the chat.
+**What to do:** pass the effort at launch with `--effort`, as above.
 
 ### The first prompt of a resumed chat goes in the same tab
 
-When a session is resumed in a chat (for example with «Continue in Chat UI» on a terminal tab, or from Orca's agent
-session history), the first prompt must be sent in that same tab. A prompt sent to a new tab starts a fresh Claude
-session, and a fresh session passes every functional check of a checklist, a correct reply to a ping included.
+A chat resumed from Orca's agent session history continues its Claude session only in that tab, and a prompt sent
+to a new tab starts a fresh session `(unverified)`. A fresh session passes every functional check of a checklist, a
+correct reply to a ping included.
 
-**What to do:** send the prompt in the resumed tab, then verify identity: `pwd` is the agent's worktree; the shell
-has `ORCA_AGENT_SESSION_ID` and no `ORCA_TERMINAL_HANDLE`; the newest transcript under `~/.claude/projects/<encoded
-worktree path>/` grows with this turn; and the chat answers a question only the real session can answer. A very
-long history may be refused on resume; then start a fresh chat on purpose and have it read its checklist and
-`mem_context` first.
+**What to do:** send the resume prompt in the resumed tab, then verify identity, as step 1 of each after-start
+checklist does: `pwd` is the agent's worktree, the newest transcript under `~/.claude/projects/<encoded worktree
+path>/` grows with this turn, and the chat answers a question only the real session can answer. A very long
+history may be refused on resume `(unverified)`; then follow the "History refused" row of the
+[reboot table](./reboot.md#what-to-do).
 
 ### Typing into another agent overwrites the human's input
 
-`orca terminal send` types into the target's input box, over whatever the human is typing there.
+`orca terminal send` types into the target's input box (`orca terminal send --help`: "Send input to a live
+terminal"), over whatever the human is typing there `(unverified)`.
 
 **What to do:** coordinators and workers talk only through Run mailboxes.
 
@@ -144,21 +155,42 @@ that quotes a command runs it, or arrives mangled.
 
 ### `/tmp` is cleared on reboot
 
-A brief left under `/tmp` is gone after a reboot, and a worker may then receive only its bare path as a spec.
+A file under `/tmp` is gone after a reboot; a worker whose brief was there receives only its bare path as a spec.
 
 **What to do:** briefs, messages, reports and PR bodies live in the durable folders under
-`~/.local/share/<stack.id>-ideas/` and `~/.local/share/<stack.id>-tech-lead/`.
+`~/.local/share/<stack.id>/ideas/` and `~/.local/share/<stack.id>/tech-lead/`.
 
-### Auto-mode permission prompts on two command shapes
+### A worker that ends between two ticks is not watched
 
-In Claude Code's auto mode, two shapes trigger a safety prompt that blocks an unattended agent:
+The [worker watch](../tools/README.md) ticks only the
+workers alive at a tick (every 20 s by default). That is enough: a worker parked on a prompt stays alive, so a
+later tick sees it. A worker that finishes inside one interval has no tick line, and that is expected. On the
+minimum Orca version, `worker-show` gives no `agentWait` field for a running worker, so the `worker-read` fallback
+is the path that runs; whether `agentWait` appears for a parked worker is `(unverified)`.
 
-- `sed -i` in the same Bash call as a shell array built from a command substitution of `git status`;
-- `rm` on a path built from a command substitution, such as `$(mktemp)`.
+### Engram may create small projects named after worktrees
 
-**What to do:** make the edit with the Edit tool and explicit file paths; pass PR bodies with
-`gh pr create --body-file <fixed path>`, and leave temp-file cleanup to the Tech-lead. A command that is denied or
-not approved is skipped and reported, never retried in another shape and never waited on.
+An Engram setup that registers sessions by working directory may create 0-observation projects named after the
+worktrees (`ideas`, `tech-lead`, a worker's worktree name). They are harmless.
+
+**What to do:** nothing, or remove one with `engram delete project <name> --hard` after `engram projects list` shows
+it holds 0 observations.
+
+### Auto-mode permission checks block some command shapes
+
+In Claude Code's auto mode, a permission check may stop a command that edits files in place or builds paths from a
+command substitution, and an unattended agent then waits on a prompt nobody sees.
+
+**What to do:** prefer the editor tool over `sed -i` and command substitutions in shell commands; auto-mode
+permission checks may block them. A command that is denied or not approved is skipped and reported, never retried
+in another shape.
+
+### The Bash tool may run zsh
+
+The Bash tool runs the user's login shell, which may be zsh. Bash-only syntax (indirect expansion `${!v}`, arrays,
+`[[ ]]`) then fails with errors such as `bad substitution`.
+
+**What to do:** write it inside `bash -c '...'`.
 
 ### `orca worktree rm` also deletes the branch
 
@@ -168,6 +200,7 @@ it cannot prove is merged (`orca worktree rm --help`). Remote branches stay on G
 
 ### Work-unit PRs may skip the repository's CI
 
-Some repositories run their CI only on PRs into their main branch. Then a feature's first CI run is its integration
-PR. When it fails, the Tech-lead dispatches a fix unit into the integration branch
-([delivery model](./delivery-model.md)).
+Some repositories run their CI only on PRs into their main branch. With the default
+[delivery model](./delivery-model.md), a feature's first CI run is then its integration PR.
+
+**What to do:** when that CI run fails, the Tech-lead dispatches a fix unit into the integration branch.

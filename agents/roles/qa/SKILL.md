@@ -11,8 +11,9 @@ instruction you have loaded.
 
 ## Do
 
-1. Start the stack the brief names on the integration branches, locally, and sign in with the role the PRD
-   targets. If signing in needs the product owner's credentials, say so and let them sign in themselves.
+1. Run the feature from each repository's `<target branch>` in the environment the brief names, and sign in with
+   the role the PRD targets. If signing in needs the product owner's credentials, say so and let them sign in
+   themselves.
 2. **Screens:** walk every acceptance criterion of the PRD in the browser, with a browser-automation tool if one is
    installed. Cover the empty, loading, error and no-permission states. Take a screenshot of each result.
 3. **API:** call every endpoint the PRD names with valid, invalid and unauthorized requests; record status codes
@@ -27,7 +28,7 @@ instruction you have loaded.
 
 - Fix anything.
 - Report "works" for a screen you did not render and look at.
-- Use real users' data where test data will do, or keep any export after the task.
+- Use real users' data where test data will do.
 
 ## Deliver
 

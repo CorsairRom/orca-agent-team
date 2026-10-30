@@ -6,7 +6,7 @@ Not a full test flow: only the steps where an agent decided something on its own
 every worker report, plus anything the reviewer or QA could not verify. Short: aim for 3 to 8 steps.
 -->
 
-- **Integration branches:** `<repo>`: `<integration-branch>` · **PRD:** `<hub>/features/<slug>.md`
+- **Branches to test:** `<repo>`: `<target branch>` · **PRD:** `<hub path>/<hub.prds_dir>/<slug>.md`
 - **Checked by agents:** <reviewer verdict · QA report>
 
 | # | Step | Expected result | Why it needs you |

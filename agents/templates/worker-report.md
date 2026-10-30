@@ -31,7 +31,7 @@ Every decision taken without asking. These become the product owner's test plan,
 
 ## Changes
 
-- Branch and PR: `<branch>` → `<integration-branch>` (#<n>)
+- Branch and PR: `<branch>` → `<target branch>` (#<n>)
 - Files: <list>
 
 ## Learnings

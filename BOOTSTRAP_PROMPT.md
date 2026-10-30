@@ -1,264 +1,349 @@
-# Bootstrap prompt: bring up the Ideas and Tech-lead chats in Orca
+# Bootstrap prompt: install the agent team from this Orca chat
 
-You are an AI running in an Orca chat (Claude Code) on a checkout of this repository. Execute this file end to end,
-in order, against `config/stack.yaml`. At the end, the Ideas chat and the Tech-lead chat run in the hub repository,
-each owns a Run, the two monitors run, and one message has gone Ideas → Tech-lead → Ideas.
+You are the **installing chat**: a Claude Code chat in Orca that the human asked to install this agent team. You
+are neither Ideas nor the Tech-lead. Execute this file end to end, in order. At the end:
+
+- `config/stack.yaml` describes the human's stack;
+- the Ideas chat and the Tech-lead chat run in two worktrees of the hub repository, each launched by you as a fresh
+  chat, each with its own Run and run-id file;
+- the two monitors run in tmux, started by the Tech-lead;
+- the handshake and one message Ideas → Tech-lead → Ideas went through;
+- you tell the human to talk to Ideas.
 
 ## Rules while you execute
 
 - Run every step's commands, compare the output with **Expected**, and only then go on. On a mismatch, stop and tell
   the human which step failed, the command, and its output. Do not improvise a different path.
-- A step marked **HUMAN** needs the human in the Orca UI or at a login prompt. Tell them exactly what to do, then
-  stop and wait for their answer before you go on.
-- Run the commands from this repository's root. Never run them from inside the hub's «Ideas» or «Tech-lead»
-  worktrees: Orca records a new worktree as a child of the caller's worktree.
+- A step marked **HUMAN** needs the human: a login, an Orca setting, or a permission prompt. These are the only
+  HUMAN steps. Tell the human exactly what to do, then stop and wait for their answer before you go on.
+- When this file says **ask the human**, ask one question at a time, wait for the answer, and go on.
+- You may run in any Orca workspace. Run the commands from this repository's clone, `<team repo>`: every block
+  starts with `cd` to it, because the Bash tool keeps its working directory only within one session. Never run
+  them from inside the hub's Ideas or Tech-lead worktrees.
 - Message bodies and prompts are written to a file first and passed with `"$(cat <file>)"`, so the shell never
   expands their content ([gotchas](./docs/gotchas.md#shell-expansion-inside-messages)).
-- Never type into another agent's terminal or chat (`orca terminal send`). Reach the two chats through their Run
-  mailboxes once they have one.
-- A command that waits (`--wait`) gets a Bash timeout above its `--timeout-ms`
-  ([gotchas](./docs/gotchas.md#a-mailbox-wait-outlives-its-bash-timeout)).
-- If a command needs approval and does not get it, skip it, say so, and stop.
-- The only remote operations are the read-only `gh` checks of step 2. Nothing is pushed.
+- Never type into another agent's chat or terminal (`orca terminal send`). Reach Ideas and the Tech-lead through
+  their Run mailboxes.
+- Prefer the editor tool over `sed -i` and command substitutions in shell commands; auto-mode permission checks may
+  block them. If a command needs approval and does not get it, skip it, say so, and stop.
+- Remote operations are read-only: `gh` checks and `git clone`. Nothing is pushed. Leave the global settings and
+  plugins of the human's agents, and the settings of the human's clones, as they are.
+- Every placeholder in `<...>`, its env-file key, who fills it and when, is in the
+  [placeholder table](./agents/README.md#placeholders). Once step 3 has run, the env file sets the keys:
+  `<ideas dir>` is `$IDEAS_DIR`, `<bootstrap dir>` is `$BOOTSTRAP_DIR`, and so on.
+- No bash step reads `config/stack.yaml`: you read it with the file tool, and every bash step takes its values from
+  the env file of step 3.
+- The Bash tool runs the human's login shell, which may be zsh. A block that needs bash (`${!var}`, `for ((...))`,
+  arrays) is written as `bash -c '...'`; run it exactly so.
 
-Every `orca` command here was checked against `orca <command> --help` on Orca 1.4.245. A line marked
-`(unverified)` was not run end to end on a reference machine; when its output differs from **Expected**, stop and
-report it.
+Every `orca` command here matches `orca <command> --help` on the minimum Orca version in the
+[README](./README.md#prerequisites). A line marked `(unverified)` has an output shape the help does not state; when
+its output differs from **Expected**, stop and report it. The background for every step is in
+[`docs/setup-guide.md`](./docs/setup-guide.md).
 
-The background for every step is in [`docs/setup-guide.md`](./docs/setup-guide.md).
-
-## Step 1. Read the config
-
-```bash
-OAT="$(git rev-parse --show-toplevel)"
-test -s "$OAT/config/stack.yaml" && echo "config present"
-yq '.stack.id' "$OAT/config/stack.yaml"
-yq '[.repos[] | select(.kind == "hub")] | length' "$OAT/config/stack.yaml"
-"$OAT/tools/load-config.sh"
-STACK_ID="$(yq '.stack.id' "$OAT/config/stack.yaml")"
-. "$HOME/.local/share/$STACK_ID/stack.env"
-printf '%s\n' "$STACK_ID" "$HUB_PATH" "$IDEAS_DIR" "$TECH_LEAD_DIR" "$IDEAS_RUN_ID_FILE" "$TECH_LEAD_RUN_ID_FILE" "$NOTIFY_MODE"
-```
-
-**Expected:** `config present`; a stack id made of lowercase letters, digits and dashes; exactly `1` hub; the loader
-reports the env file it wrote; seven non-empty lines, with `$HUB_PATH` an absolute path and the two Run id files
-under `~/.local/share/<id>-ideas/` and `~/.local/share/<id>-tech-lead/`.
-
-If `config/stack.yaml` is missing, tell the human to copy `config/stack.example.yaml` to `config/stack.yaml` and fill
-it, then stop. If the loader's flags or output differ from the above, follow [`tools/README.md`](./tools/README.md),
-which wins.
-
-Shell variables do not survive between Bash calls. Start every later step's commands with:
+## Step 1. Check the prerequisites
 
 ```bash
-OAT="$(git rev-parse --show-toplevel)"; STACK_ID="$(yq '.stack.id' "$OAT/config/stack.yaml")"; . "$HOME/.local/share/$STACK_ID/stack.env"
-```
-
-## Step 2. Check the prerequisites
-
-```bash
-orca --version; claude --version; git --version; gh --version | head -1; tmux -V; jq --version; yq --version; engram version
+cd <team repo>
+orca --version; orca status --json | head -20
+claude --version; git --version; gh --version | head -1; tmux -V; jq --version; engram version
 gh auth status
 claude mcp list | grep -i engram
-for r in $(yq '.repos[].remote' "$OAT/config/stack.yaml"); do gh repo view "$r" --json nameWithOwner -q .nameWithOwner; done
-yq '.repos[].path' "$OAT/config/stack.yaml" | while read -r p; do p="${p/#\~/$HOME}"; git -C "$p" rev-parse --abbrev-ref HEAD || echo "MISSING $p"; done
-orca skills get orchestration --full | head -5
+orca skills get orchestration --full | head -3
 ```
 
 **Expected:**
 
-- Orca `1.4.245` or newer; every other tool prints a version ([README, Prerequisites](./README.md#prerequisites)).
+- Every tool prints a version at or above the minimum versions in the [README](./README.md#prerequisites), and
+  `orca status` reports the app as running.
 - `gh auth status` reports a logged-in account.
-- One line naming `engram` as `Connected`.
-- One `owner/repo` per repository in the config, no error.
-- One branch name per repository, no `MISSING` line.
-- Markdown front matter that starts `name: orchestration`.
+- One line naming `engram`, `Connected`.
+- Front matter with `name: orchestration`.
 
-On a failure, the fix is in [`docs/setup-guide.md`](./docs/setup-guide.md#prerequisites). A missing local clone is
-cloned with `git clone` into the path the config names.
+A missing tool is installed as [`docs/setup-guide.md`](./docs/setup-guide.md#prerequisites) says; ask the human
+before installing anything.
 
-> **HUMAN — logins.** If `gh auth status` fails, ask the human to run `gh auth login` in a terminal. If `claude`
-> reports no login, ask the human to log in to Claude Code. Wait for both.
+> **HUMAN — logins.** If `gh auth status` reports no login, ask the human to run `gh auth login` in a terminal. If
+> `claude` reports no login, ask the human to log in to Claude Code. Wait for both.
 
-> **HUMAN — Orca settings.** Ask the human to open the Orca app's settings and confirm:
-> Chat UI **on**, «Agent sleep» **off**, «Agent Dashboard» **on**. Wait for their confirmation.
-> Why: [`docs/gotchas.md`](./docs/gotchas.md#agent-sleep-must-stay-off).
+> **HUMAN — Orca settings.** Ask the human to open the Orca app's settings and confirm three settings: Chat UI
+> **on**, "Agent sleep" **off**, "Agent Dashboard" **on**. Wait for their confirmation. Why:
+> [`docs/setup-guide.md`](./docs/setup-guide.md#orca-settings).
 
-If gentle-ai is installed (`gentle-ai --version` answers), also run the per-clone setup of
-[`docs/delivery-model.md`](./docs/delivery-model.md#when-gentle-ai-is-installed) for every non-hub repository.
+## Step 2. The config
 
-## Step 3. Register the repositories in Orca
+Read `<team repo>/config/stack.yaml` with the file tool.
+
+**If it exists,** show the human its `stack`, `repos` and `models` sections and go to step 3.
+
+**If it is missing, build it with the human.** Start from a copy of
+[`config/stack.example.yaml`](./config/stack.example.yaml), whose comments explain every key, and **ask the
+human**, one question at a time:
+
+1. **Stack id**: lowercase letters, digits and dashes, such as `acme`. It names every local folder of the team.
+   Propose a display name (`stack.name`) from it.
+2. **The repositories of the stack.** For each one: its local path, or its GitHub `owner/repo` and the path to
+   clone it to. Right after the answer, clone each repository that has no local clone yet, after telling the
+   human: `gh repo clone <owner/repo> <path>`. Then ask which one is the **hub**, where Ideas and the Tech-lead
+   live and the planning documents are kept, and the kind of each other one (`frontend`, `backend`, `docs`,
+   `infra` or `other`). Fill `name`, `remote` and `main_branch` yourself from each clone, and show them:
+
+   ```bash
+   cd <team repo>
+   git -C <path> remote get-url origin
+   git -C <path> symbolic-ref --short refs/remotes/origin/HEAD
+   ```
+
+   `remote` is the `owner/repo` part of the first line. `main_branch` is the second line without its `origin/`
+   prefix: `origin/main` gives `main`. `name` is the clone's folder name, the name Orca gives a repository it
+   registers (`(unverified)`: `orca repo add --help` does not say); step 4 reads the registered name back. Every
+   command of the team selects a repository by its path (`--repo path:<path>`), so the name is for display.
+
+3. **Languages**: of the conversation with the product owner, of artifacts (code, docs, PRs), and of app copy.
+   Propose `en` for all three.
+4. **Models**: propose the example's model and effort per role and seniority, and ask whether to change any.
+
+Every other key keeps the example's value: `memory.engram_project` is the hub's `name`, `memory.topic_prefix` is the
+stack id, and `hub`, `delivery`, `conventions` (empty), `orca` and `monitors` stay as in the example. Write the
+result to `<team repo>/config/stack.yaml` with the editor tool, show the whole file to the human, and ask them to
+confirm it. Change what they ask, then go on.
+
+## Step 3. Write the env file
+
+Write the env file and the conventions file from `config/stack.yaml` by following
+[Writing the env file](./tools/README.md#writing-the-env-file) in `tools/README.md`, all four of its steps. It
+validates the config first: when it finds a problem, tell the human every problem, fix them in `config/stack.yaml`
+with the human, and run this step again.
+
+**Expected:** its read-back shows `HUB_PATH` as an absolute path, `REPO_COUNT` equal to the number of repositories,
+the model and effort of Ideas and the Tech-lead, and one line per repository.
+
+Shell variables do not survive between Bash calls, so every later bash block starts by sourcing the env file:
+`. ~/.local/share/<stack.id>/stack.env`, with `<stack.id>` filled in.
+
+## Step 4. Check the clones and register the repositories in Orca
 
 ```bash
-yq '.repos[].path' "$OAT/config/stack.yaml" | while read -r p; do orca repo add --path "${p/#\~/$HOME}" --json >/dev/null && echo "added ${p}"; done
-orca repo list --json | jq -r '.. | objects | select(has("path")) | .path' | sort -u
+bash -c '
+. ~/.local/share/<stack.id>/stack.env
+cd "$TEAM_REPO"
+for ((i = 0; i < REPO_COUNT; i++)); do r="REPO_${i}_REMOTE"; gh repo view "${!r}" --json nameWithOwner -q .nameWithOwner; done
+for ((i = 0; i < REPO_COUNT; i++)); do p="REPO_${i}_PATH"; git -C "${!p}" rev-parse --abbrev-ref HEAD || echo "MISSING ${!p}"; done
+'
 ```
 
-**Expected:** one `added` line per repository, and the list contains every repository path of the config, expanded.
-A repository that was already registered is fine. The JSON path in the second line is `(unverified)` on 1.4.245; if
-it prints nothing, read `orca repo list --json` whole and check the paths by eye.
+**Expected:** one `owner/repo` per repository, no error; one branch name per repository, no `MISSING` line. A
+missing clone is cloned with `git clone` from its `REPO_<i>_REMOTE` into its `REPO_<i>_PATH`, after telling the
+human.
 
-## Step 4. Create the durable folders and the two hub worktrees
+Register every repository that Orca does not list yet:
 
 ```bash
-mkdir -p "$IDEAS_DIR/briefs" "$TECH_LEAD_DIR"/{briefs,reports,pr-bodies} "$HOME/.local/share/$STACK_ID/bootstrap"
-cp "$OAT/agents/templates/after-start-ideas.md" "$IDEAS_DIR/after-start.md"
-cp "$OAT/agents/templates/after-start-tech-lead.md" "$TECH_LEAD_DIR/after-start.md"
-cp "$OAT/agents/team-conventions.md" "$TECH_LEAD_DIR/briefs/team-conventions.md"
-HUB_MAIN="$(yq '.repos[] | select(.kind == "hub") | .main_branch' "$OAT/config/stack.yaml")"
-orca worktree create --repo path:"$HUB_PATH" --name Ideas --base-branch "$HUB_MAIN" --no-parent --json
+bash -c '
+. ~/.local/share/<stack.id>/stack.env
+cd "$TEAM_REPO"
+for ((i = 0; i < REPO_COUNT; i++)); do p="REPO_${i}_PATH"
+  orca repo list --json | jq -e --arg p "${!p}" "any(.. | objects; .path? == \$p)" >/dev/null || orca repo add --path "${!p}" --json >/dev/null
+done
+'
 ```
 
-Read the new worktree's absolute path from the output and keep it as `<Ideas>`. Then:
+Then read the registration back:
 
 ```bash
-orca worktree create --repo path:"$HUB_PATH" --name Tech-lead --parent-worktree path:<Ideas> --base-branch "$HUB_MAIN" --json
+bash -c '
+. ~/.local/share/<stack.id>/stack.env
+cd "$TEAM_REPO"
+list=$(orca repo list --json)
+for ((i = 0; i < REPO_COUNT; i++)); do p="REPO_${i}_PATH"; n="REPO_${i}_NAME"
+  name=$(jq -r --arg p "${!p}" "[.. | objects | select(.path? == \$p)][0].displayName // \"NOT-REGISTERED\"" <<<"$list")
+  echo "${!p} registered=$name config=${!n}"
+done
+'
+```
+
+**Expected:** one line per repository, none `NOT-REGISTERED`: every `REPO_<i>_PATH` appears in `orca repo list`.
+`displayName` is the field `orca repo list --json` prints for a repository's name. Where `registered` differs from
+`config`, write the registered name into that repository's `name` in `config/stack.yaml` with the editor tool, and
+write the env file again (step 3).
+
+## Step 5. Create the durable folders, the Engram project and the two hub worktrees
+
+Engram refuses an explicit project it holds no observation of (`unknown_project`), and the chats pass the project
+explicitly ([memory](./agents/README.md#memory)). So you create it once, with one note, unless it already holds
+some:
+
+```bash
+. ~/.local/share/<stack.id>/stack.env
+cd "$TEAM_REPO"
+mkdir -p "$IDEAS_DIR/briefs" "$TECH_LEAD_DIR/briefs" "$TECH_LEAD_DIR/reports" "$TECH_LEAD_DIR/pr-bodies" "$BOOTSTRAP_DIR"
+engram projects list | awk -v p="$ENGRAM_PROJECT" '$1 == p && $2 > 0' | grep -q . || engram save "$STACK_NAME agent team installed" "The installing chat created this project for the $STACK_NAME agent team." --type config --project "$ENGRAM_PROJECT"
+engram projects list | awk -v p="$ENGRAM_PROJECT" '$1 == p'
+```
+
+**Expected:** one line: the project, with `1 obs` or more. Engram may also print an update notice; ignore it.
+
+List the hub's worktrees first:
+
+```bash
+. ~/.local/share/<stack.id>/stack.env
+cd "$TEAM_REPO"
 orca worktree list --repo path:"$HUB_PATH" --json
 ```
 
-Keep the second worktree's path as `<Tech-lead>`. Write both to the bootstrap folder, one path per file, so later
-steps can read them:
+If the list shows a worktree named Ideas, keep its path as `<ideas worktree>` and skip the next block; otherwise
+create it:
 
 ```bash
-printf '%s\n' '<Ideas>' > "$HOME/.local/share/$STACK_ID/bootstrap/ideas-path.txt"
-printf '%s\n' '<Tech-lead>' > "$HOME/.local/share/$STACK_ID/bootstrap/tech-lead-path.txt"
+. ~/.local/share/<stack.id>/stack.env
+cd "$TEAM_REPO"
+orca worktree create --repo path:"$HUB_PATH" --name Ideas --base-branch "$HUB_MAIN_BRANCH" --no-parent --json
 ```
 
-Now fill every `<placeholder>` in the two copied checklists, `$IDEAS_DIR/after-start.md` and
-`$TECH_LEAD_DIR/after-start.md`, with this machine's values (the env file and the two paths above). Use the Edit
-tool, not `sed -i`.
-
-**Expected:** two worktrees in the hub, «Ideas» top-level and «Tech-lead» with «Ideas» as its parent; the two
-checklists hold no `<` placeholder left (`grep -n '<[A-Za-z]' "$IDEAS_DIR/after-start.md" "$TECH_LEAD_DIR/after-start.md"`
-prints only code that is meant to stay, such as `<delivery-id>`). The `create` lines are built from
-`orca worktree create --help` `(unverified)`. If a worktree with that name already exists, reuse it instead of
-creating a second one.
-
-## Step 5. Open both chats; each creates its Run and its Run id file
-
-A Run is bound to the session that creates it, so you cannot create the two Runs yourself: each chat creates its
-own ([gotchas](./docs/gotchas.md#a-run-belongs-to-the-session-that-created-it)). You launch each chat with a first
-prompt that does only that.
-
-Write Ideas' first prompt to `~/.local/share/<id>/bootstrap/ideas-first.md`, with the values filled in:
-
-```text
-You are Ideas, the analyst chat of the <stack.name> agent team. Your role card is
-<OAT>/agents/roles/ideas/SKILL.md and your checklist is <IDEAS_DIR>/after-start.md.
-Do only this now: run the Run step of your checklist as a FIRST START (no prior session). Check
-`orca orchestration run-current --json`; when it shows no Run, create one with
-`orca orchestration run-create --objective "<stack.name> Ideas inbox" --json`, then write its id, only the id, on
-one line, to <IDEAS_RUN_ID_FILE>, and confirm that `orca orchestration run-current --json` shows the same id.
-Then stop. Your next instructions arrive in your Run mailbox with the subject prefix [Bootstrap]. When Orca tells
-you that you have mail, read it with `orca orchestration check --run <your run id> --json`, act on every message,
-and acknowledge the batch with `--ack <deliveryId>`.
-```
-
-Write the Tech-lead's to `~/.local/share/<id>/bootstrap/tech-lead-first.md` the same way, with
-`<OAT>/agents/roles/tech-lead/SKILL.md`, `<TECH_LEAD_DIR>/after-start.md`, the objective
-`"<stack.name> Tech-lead"` and `<TECH_LEAD_RUN_ID_FILE>`. Add one line: "Messages with the subject prefix
-[PR monitor] or [Worker watch] may arrive before your checklist; read and acknowledge them."
-
-Launch Ideas, wait for its Run id file, then launch the Tech-lead:
+Orca chooses where a worktree lives, which need not be next to the hub clone: read the worktree's absolute path
+from the output, never assume it, and keep it as `<ideas worktree>`. The same for the Tech-lead: if the list
+showed a worktree named Tech-lead, keep its path as `<tech-lead worktree>` and skip the next block; otherwise:
 
 ```bash
-B="$HOME/.local/share/$STACK_ID/bootstrap"
-orca agent launch --agent claude --worktree path:"$(cat "$B/ideas-path.txt")" --surface chat \
-  --model "$(yq '.models.ideas.model' "$OAT/config/stack.yaml")" --effort "$(yq '.models.ideas.effort' "$OAT/config/stack.yaml")" \
-  --prompt "$(cat "$B/ideas-first.md")" --json
-for i in $(seq 1 40); do test -s "$IDEAS_RUN_ID_FILE" && break; sleep 10; done; cat "$IDEAS_RUN_ID_FILE"
+. ~/.local/share/<stack.id>/stack.env
+cd "$TEAM_REPO"
+orca worktree create --repo path:"$HUB_PATH" --name Tech-lead --parent-worktree path:<ideas worktree> --base-branch "$HUB_MAIN_BRANCH" --json
+orca worktree list --repo path:"$HUB_PATH" --json
 ```
+
+Keep the Tech-lead's path as `<tech-lead worktree>`, and write both down for later steps:
 
 ```bash
-B="$HOME/.local/share/$STACK_ID/bootstrap"
-orca agent launch --agent claude --worktree path:"$(cat "$B/tech-lead-path.txt")" --surface chat \
-  --model "$(yq '.models.tech_lead.model' "$OAT/config/stack.yaml")" --effort "$(yq '.models.tech_lead.effort' "$OAT/config/stack.yaml")" \
-  --prompt "$(cat "$B/tech-lead-first.md")" --json
-for i in $(seq 1 40); do test -s "$TECH_LEAD_RUN_ID_FILE" && break; sleep 10; done; cat "$TECH_LEAD_RUN_ID_FILE"
+. ~/.local/share/<stack.id>/stack.env
+cd "$TEAM_REPO"
+printf '%s\n' '<ideas worktree>' > "$BOOTSTRAP_DIR/ideas-path.txt"
+printf '%s\n' '<tech-lead worktree>' > "$BOOTSTRAP_DIR/tech-lead-path.txt"
 ```
 
-Give each of these Bash calls a timeout of 600000 ms (the loop waits up to 400 s).
+**Expected:** two worktrees in the hub, Ideas top-level (`--no-parent`) and Tech-lead with Ideas as its parent.
+`--no-parent` matters: without it, Orca uses the parent it infers from the current context
+(`orca worktree create --help`). The field that holds the path in the JSON is `(unverified)`; read it from the
+output.
 
-**Expected:** each launch reports a chat (`outcome.kind`), the Orca app shows a Claude chat tab in each worktree, and
-each Run id file holds one id on one line, not `null`. The launch lines are built from `orca agent launch --help`
-`(unverified)` as exact lines.
+## Step 6. Launch Ideas and the Tech-lead
+
+A Run is bound to the session that created it, so you do not create their Runs: each chat creates its own in its
+first turn, from its after-start checklist ([gotchas](./docs/gotchas.md#a-run-is-bound-to-the-session-that-created-it)).
+
+Write five files with the editor tool (long text inside shell commands breaks on quoting, and auto-mode permission
+checks may block command substitutions), with every value filled in (`<stack.id>`, `<stack.name>` and the absolute
+`<team repo>`):
+
+- `<bootstrap dir>/ideas-first.md`, the first prompt of Ideas:
+
+  ```text
+  You are Ideas, the analyst chat of the <stack.name> agent team. Your role card is
+  <team repo>/agents/roles/ideas/SKILL.md. Read <team repo>/agents/templates/after-start-ideas.md whole and run it
+  now as a FIRST START. The stack id is <stack.id>; the team repository is <team repo>.
+  ```
+
+- `<bootstrap dir>/tech-lead-first.md`, the same with `You are the Tech-lead, the coordinator chat`,
+  `agents/roles/tech-lead/SKILL.md` and `agents/templates/after-start-tech-lead.md`;
+- `<ideas dir>/resume-prompt.txt` and `<tech-lead dir>/resume-prompt.txt`, the same two texts with `RESUME` instead
+  of `FIRST START`. The human pastes them after a reboot ([`docs/reboot.md`](./docs/reboot.md)).
+
+Launch Ideas, and wait for its run-id file:
+
+```bash
+. ~/.local/share/<stack.id>/stack.env
+cd "$TEAM_REPO"
+orca agent launch --agent claude --surface chat --worktree path:"$(cat "$BOOTSTRAP_DIR/ideas-path.txt")" \
+  --model "$MODEL_IDEAS" --effort "$EFFORT_IDEAS" \
+  --prompt "$(cat "$BOOTSTRAP_DIR/ideas-first.md")" --json
+for i in $(seq 1 50); do test -s "$IDEAS_RUN_ID_FILE" && break; sleep 10; done; cat "$IDEAS_RUN_ID_FILE"
+```
+
+Then the Tech-lead, and wait for its run-id file and for the handshake confirmation:
+
+```bash
+. ~/.local/share/<stack.id>/stack.env
+cd "$TEAM_REPO"
+orca agent launch --agent claude --surface chat --worktree path:"$(cat "$BOOTSTRAP_DIR/tech-lead-path.txt")" \
+  --model "$MODEL_TECH_LEAD" --effort "$EFFORT_TECH_LEAD" \
+  --prompt "$(cat "$BOOTSTRAP_DIR/tech-lead-first.md")" --json
+for i in $(seq 1 50); do test -s "$TECH_LEAD_DIR/handshake-ok.txt" && break; sleep 10; done
+cat "$TECH_LEAD_RUN_ID_FILE" "$TECH_LEAD_DIR/handshake-ok.txt"
+```
+
+Give each of these Bash calls a timeout of 600000 ms (each loop waits up to 500 s).
+
+**Expected:**
+
+- Each launch answers with `outcome.kind` naming a chat, and a chat tab appears in its worktree.
+- Each run-id file holds one id on one line, not `null`.
+- `handshake-ok.txt` holds Ideas' Run id: the Tech-lead started the monitors, sent `[Tech-lead] ready` to Ideas'
+  Run, Ideas answered with `[From Ideas] handshake received`, and the Tech-lead recorded it.
+
+If a launch reports a terminal instead of a chat, stop: the team needs chats; tell the human what
+`receipt.detail` says.
 
 > **HUMAN — permission prompts.** A new chat may stop on a permission prompt for its first `orca` command. Ask the
 > human to watch the Agent Dashboard and approve the `orca orchestration` commands of the two chats.
 
-> **HUMAN — when a launch does not give a chat.** If a launch reports a terminal instead of a chat, or fails, ask
-> the human to open a new Claude agent tab on that worktree in the Orca app and paste the first prompt file's
-> content as the first message **in that same tab**. Wait for the Run id file as above.
+## Step 7. Check the monitors
 
-## Step 6. Start the monitors
-
-The PR monitor and the permission watch run in tmux and post to the Tech-lead's Run mailbox (`notify_mode: run`).
-Install and start them exactly as [`tools/README.md`](./tools/README.md) says, from the env file of step 1. The
-tmux session names, the start lines and the alive-check command are defined there.
-
-**Expected:** `tmux ls` lists both monitor sessions; the alive check `tools/README.md` gives reports `Sent msg_...`;
-the Tech-lead chat receives a `[PR monitor] ...` message. A first poll of the PR monitor notifies nothing: it records
-a baseline.
-
-## Step 7. Both chats run their after-start checklists
-
-Send each chat, through its own Run, the instruction to run its checklist. Write the body first:
-
-```text
-Run your after-start checklist, <checklist path>, now, as a FIRST START: there is no prior session to verify, and
-your Run already exists (keep it). On a first start the Tech-lead sends the first handshake to Ideas, and Ideas
-answers it. Report the result in this chat when you are done.
-```
+The PR monitor and the permission watch run in the tmux sessions `<stack.id>-pr-monitor` and
+`<stack.id>-worker-watch`, and post to the Tech-lead's Run mailbox. The Tech-lead started them in its first turn
+(its checklist step 4), not you: a monitor sends under the Orca identity of the chat that started it, and you are
+closed after the install ([gotchas](./docs/gotchas.md#a-tmux-session-sends-under-the-identity-it-was-started-with)).
+You only check them:
 
 ```bash
-B="$HOME/.local/share/$STACK_ID/bootstrap"
-orca orchestration send --to "run:$(cat "$IDEAS_RUN_ID_FILE")" --type status --subject "[Bootstrap] run your after-start checklist" --body "$(cat "$B/ideas-checklist.md")" --json
-orca orchestration send --to "run:$(cat "$TECH_LEAD_RUN_ID_FILE")" --type status --subject "[Bootstrap] run your after-start checklist" --body "$(cat "$B/tech-lead-checklist.md")" --json
+. ~/.local/share/<stack.id>/stack.env
+cd "$TEAM_REPO"
+tmux ls
+tail -n 1 "$MONITOR_DIR/monitor.log"
+orca orchestration inbox --limit 100 --json | jq -r '[.. | objects | select(has("from_handle") and has("subject"))] | unique_by(.id) | sort_by(.created_at)[] | select((.subject | startswith("[PR monitor] alive check")) or (.subject | startswith("[Tech-lead] ready"))) | "\(.created_at)  \(.from_handle)  \(.subject)"'
 ```
 
-**Expected:** each send answers with a message id. Within about two minutes Orca nudges each idle chat, and each
-chat reads its mail and runs its checklist; you see both working in the Orca app. The Tech-lead's checklist ends
-with a `[Tech-lead]` message to Ideas, and Ideas answers it.
+**Expected:** `tmux ls` lists both sessions; the last line of `monitor.log` is the send receipt of the alive check;
+the newest `[PR monitor] alive check` and the newest `[Tech-lead] ready` show the same `from_handle`, the Tech-lead's
+([Check the sender](./tools/README.md#check-the-sender)). A missing session, a missing alive check or another
+sender: send the Tech-lead a `[Bootstrap]` message through its Run asking it to run its checklist step 4 again,
+then check once more.
 
-> **HUMAN — when a chat does not react.** If a chat shows no new turn two minutes after the send, ask the human to
-> paste the same body into that chat **in its existing tab** (not a new tab: a new tab is a fresh session).
-
-## Step 8. Prove the mailbox round trip Ideas → Tech-lead → Ideas
+## Step 8. Prove the round trip Ideas → Tech-lead → Ideas
 
 Pick a fresh token, such as `BOOT-` plus the current Unix time, and write this body to
-`~/.local/share/<id>/bootstrap/roundtrip.md`:
+`<bootstrap dir>/roundtrip.md`, with the values filled in:
 
 ```text
 Mailbox round-trip test. Send the Tech-lead, through its Run, a [From Ideas] message that carries the token
 <token> and asks it to echo the token back to you. When its [Tech-lead] reply with the same token arrives, write
-the token, only the token, to <IDEAS_DIR>/roundtrip-ok.txt, and tell the product owner in this chat that the
-round trip worked.
+the token, only the token, to <ideas dir>/roundtrip-ok.txt.
 ```
 
 ```bash
-B="$HOME/.local/share/$STACK_ID/bootstrap"
+. ~/.local/share/<stack.id>/stack.env
+cd "$TEAM_REPO"
 : > "$IDEAS_DIR/roundtrip-ok.txt"
-orca orchestration send --to "run:$(cat "$IDEAS_RUN_ID_FILE")" --type status --subject "[Bootstrap] mailbox round trip" --body "$(cat "$B/roundtrip.md")" --json
+orca orchestration send --to "run:$(cat "$IDEAS_RUN_ID_FILE")" --type status --subject "[Bootstrap] mailbox round trip" --body "$(cat "$BOOTSTRAP_DIR/roundtrip.md")" --json
 for i in $(seq 1 50); do test -s "$IDEAS_DIR/roundtrip-ok.txt" && break; sleep 10; done; cat "$IDEAS_DIR/roundtrip-ok.txt"
 ```
 
 Give the Bash call a timeout of 600000 ms.
 
-**Expected:** the file holds exactly your token. That proves Ideas → Tech-lead (Ideas' send reached the Tech-lead's
-Run and Orca woke it) and Tech-lead → Ideas (the echo reached Ideas' Run and woke it). The Ideas chat shows the
-confirmation.
+**Expected:** the send answers with a message id, and the file holds exactly your token. That proves Ideas →
+Tech-lead (Ideas' send reached the Tech-lead's Run and Orca prompted the Tech-lead) and Tech-lead → Ideas (the
+echo reached Ideas' Run and Orca prompted Ideas).
 
-If the file stays empty, apply the **HUMAN** fallback of step 7 to the chat that did not react, then re-run this
-step with a new token.
+**When a chat does not react** in step 6, 7 or 8: send it a `[Bootstrap] ping` through its Run, which prompts it
+again, and wait once more. If it still does not react, stop and report which chat, which step and what its tab
+shows.
 
-## Done
+## Step 9. Hand over to Ideas
 
 Report to the human:
 
-- the two worktree paths, the two Run ids, and the monitor sessions;
-- the round-trip token, and whether it came back;
-- every step that needed a fallback or failed, and every `(unverified)` line whose output differed from
+- the path of `config/stack.yaml`, the two worktree paths, the two Run ids, and the two monitor sessions;
+- the handshake and the round-trip token, and whether each came back;
+- every step that failed or needed a HUMAN action, and every `(unverified)` line whose output differed from
   **Expected**.
 
-Leave the bootstrap folder `~/.local/share/<id>/bootstrap/` in place; it holds no secret, and the human may delete
-it. From now on the human talks to the Ideas chat. After a reboot, follow [`docs/reboot.md`](./docs/reboot.md).
+Then tell the human: **from now on, talk to the Ideas chat**, in the hub's Ideas worktree. After a reboot, follow
+[`docs/reboot.md`](./docs/reboot.md). The folder `<bootstrap dir>` holds no secret; the human may delete it.
