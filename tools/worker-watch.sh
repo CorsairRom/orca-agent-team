@@ -64,7 +64,7 @@ tick_line() { if [ "$ONCE" = 1 ]; then echo "tick $1"; else echo "$(date -Is) ti
 # Writes the worker's newest transcript or terminal rows (its last two pages) to its tail file. It resumes from the
 # cursor of the last page it read, because the cursor after the newest page is refused as invalid.
 read_new() {
-  local ctx="$1" c out nc i prev="" got=0
+  local ctx="$1" c out nc prev="" got=0
   local cf="$STATE/worker-watch.cursor.$ctx" tf="$STATE/worker-watch.tail.$ctx"
   c="$(cat "$cf" 2>/dev/null)"
   for _ in $(seq 1 50); do
