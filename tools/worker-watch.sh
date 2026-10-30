@@ -67,7 +67,7 @@ read_new() {
   local ctx="$1" c out nc i prev="" got=0
   local cf="$STATE/worker-watch.cursor.$ctx" tf="$STATE/worker-watch.tail.$ctx"
   c="$(cat "$cf" 2>/dev/null)"
-  for i in $(seq 1 50); do
+  for _ in $(seq 1 50); do
     if ! out="$("$ORCA" orchestration worker-read --dispatch "$ctx" --source auto --limit 200 ${c:+--cursor "$c"} 2>/dev/null)"; then
       [ "$got" = 1 ] && break
       if [ -n "$c" ]; then c=""; rm -f "$cf"; continue; fi
