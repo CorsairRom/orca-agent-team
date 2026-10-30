@@ -39,17 +39,17 @@ memory:
   # Prefix of every topic key: <prefix>/<domain>/<topic>.
   topic_prefix: acme
 
-# Languages, as language codes or names the agents understand.
+# Languages, as language codes or names the agents understand. Any language works; the example uses en.
 language:
   # Language the Ideas and Tech-lead chats use with the product owner.
-  owner_conversation: es
+  owner_conversation: en
   # Language of code, docs, pull requests and commit messages.
   artifacts: en
   # Language of UI strings and user manuals.
-  app_copy: es
+  app_copy: en
   # Free-form rules every writer of app copy applies. Optional; an empty list is fine.
   app_copy_rules:
-    - "Neutral register; no regional slang."
+    - "Plain, neutral register; no slang."
 
 # Model id and effort level per role and per worker seniority, as Claude Code accepts them
 # (claude --model <id> --effort <level>). Effort is one of low | medium | high | xhigh | max.
