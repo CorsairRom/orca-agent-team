@@ -1,0 +1,89 @@
+# Stack configuration for orca-agent-team.
+#
+# Copy this file to config/stack.yaml (or point $STACK_CONFIG at your copy), edit it for your stack,
+# then run tools/load-config.sh. The loader validates the file and writes a shell-sourceable env file
+# (default ~/.local/share/<stack.id>/stack.env) that the monitors in tools/ read.
+#
+# This example describes a fictional stack named "acme": one hub repository, one frontend and one backend.
+# Every value below is an example. Replace it with your own.
+
+stack:
+  # Short identifier of the stack. Lowercase letters, digits and hyphens only ([a-z0-9-]+).
+  # It drives local paths: ~/.local/share/<id>/ (env file, monitor state),
+  # ~/.local/share/<id>-ideas/ and ~/.local/share/<id>-tech-lead/ (Run id files of both chats).
+  id: acme
+  # Display name, used in messages and documents.
+  name: "ACME platform"
+
+# Every repository of the stack. Each entry needs all five keys.
+#   name:        the repository name as registered in Orca
+#   path:        the local clone; a leading ~ is expanded to your home directory
+#   remote:      the GitHub repository as owner/repo; the PR monitor polls it
+#   main_branch: the branch features finally land on
+#   kind:        one of hub | frontend | backend | docs | infra | other
+# Exactly one repository has kind hub: the Ideas and Tech-lead chats live in it, and it keeps the PRDs,
+# ADRs and backlog. The other kinds select which worker role card applies to a repository.
+repos:
+  - name: acme-hub
+    path: ~/dev/acme/acme-hub
+    remote: acme-org/acme-hub
+    main_branch: main
+    kind: hub
+  - { name: acme-web, path: ~/dev/acme/acme-web, remote: acme-org/acme-web, main_branch: develop, kind: frontend }
+  - { name: acme-api, path: ~/dev/acme/acme-api, remote: acme-org/acme-api, main_branch: develop, kind: backend }
+
+# Shared memory (Engram MCP).
+memory:
+  # Engram project key every chat and worker of the stack reads and writes.
+  engram_project: acme-hub
+  # Prefix of every topic key: <prefix>/<domain>/<topic>.
+  topic_prefix: acme
+
+# Languages, as language codes or names the agents understand.
+language:
+  # Language the Ideas and Tech-lead chats use with the product owner.
+  owner_conversation: es
+  # Language of code, docs, pull requests and commit messages.
+  artifacts: en
+  # Language of UI strings and user manuals.
+  app_copy: es
+  # Free-form rules every writer of app copy applies. Optional; an empty list is fine.
+  app_copy_rules:
+    - "Neutral register; no regional slang."
+
+# Model id and effort level per role and per worker seniority, as Claude Code accepts them
+# (claude --model <id> --effort <level>). Effort is one of low | medium | high | xhigh | max.
+# All five entries are required.
+models:
+  ideas:     { model: claude-opus-5-5,   effort: high }
+  tech_lead: { model: claude-opus-5-5,   effort: high }
+  senior:    { model: claude-opus-5-5,   effort: high }
+  mid:       { model: claude-sonnet-5-5, effort: medium }
+  junior:    { model: claude-haiku-5-5,  effort: low }
+
+# Orca settings the setup expects. The first three are applied by hand in the Orca settings UI;
+# the loader only records them so the bootstrap prompt can check them.
+orca:
+  # Chat UI ON: both chats run as Orca chats.
+  chat_ui: true
+  # Agent sleep OFF: mail does not wake a slept agent, so a slept coordinator would miss its mailbox.
+  agent_sleep: false
+  # Agent Dashboard ON: recommended for the human who watches the team.
+  agent_dashboard: true
+  # How the monitors reach the Tech-lead:
+  #   run      post a status message to the mailbox of the Tech-lead's Orca Run (the default setup)
+  #   terminal type the line into the Orca terminal titled tech_lead_terminal_title
+  notify_mode: run
+  # Title of the Tech-lead's Orca terminal. Required when notify_mode is terminal; ignored otherwise.
+  tech_lead_terminal_title: ""
+
+# The two long-lived monitors in tools/. Every key is optional; the values below are the defaults.
+monitors:
+  # Seconds between two polls of the PR monitor.
+  pr_interval_seconds: 300
+  # Seconds between two ticks of the worker permission watch.
+  watch_interval_seconds: 20
+  # gh pr list --author filter: "@me" is the account gh is logged in with.
+  pr_author: "@me"
+  # A merged pull request stays in the PR monitor's snapshot for this many days.
+  merged_window_days: 2
