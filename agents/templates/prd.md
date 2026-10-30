@@ -1,7 +1,7 @@
 # PRD — <feature in one line>
 
 <!--
-Written by Ideas into the hub (features/<slug>.md unless the hub keeps PRDs elsewhere), in language.artifacts,
+Written by Ideas into the hub (<hub.prds_dir>/<slug>.md, wherever the hub keeps PRDs), in language.artifacts,
 once the idea is refined. Short and dense. No implementation detail: say what must be true, not how to build it.
 A bug uses the "Bug" section instead of the requirements' stories.
 -->
