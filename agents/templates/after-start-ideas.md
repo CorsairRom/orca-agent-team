@@ -42,14 +42,15 @@ Run every step in order, then report to the product owner in `language.owner_con
      Expected: the file holds one Run id and nothing else. `(unverified on 1.4.245)`: the `.id` field under
      `.result.run`; `.result.run` itself is verified.
 
-3. **Arm the mailbox wait** with Bash `run_in_background: true`, never a detached `&`:
+3. **Arm the mailbox wait** with Bash `run_in_background: true` and a Bash `timeout` of `1860000`, above
+   `--timeout-ms`; never a detached `&`:
 
    ```bash
    orca orchestration check --run "$(cat <ideas run-id file>)" --wait --timeout-ms 1800000 --json
    ```
 
    On every wake: read the whole Delivery, relay or act on every message, then acknowledge and re-arm in one
-   command, also with `run_in_background: true`:
+   command, also with `run_in_background: true` and the same timeout:
 
    ```bash
    orca orchestration check --run "$(cat <ideas run-id file>)" --ack <delivery-id> --wait --timeout-ms 1800000 --json
@@ -83,8 +84,8 @@ Run every step in order, then report to the product owner in `language.owner_con
 ## Standing rules
 
 - After every wake: read the whole Delivery, act, acknowledge, re-arm in the background. Never end a turn without an
-  armed wait. On an Orca nudge with no wait running, read with `orca orchestration check --run <own run id> --json`,
-  acknowledge, and re-arm.
+  armed wait. Orca's nudge is the fallback, not the rule: on a nudge with no wait running, read with
+  `orca orchestration check --run <own run id> --json`, acknowledge, and re-arm.
 - Reach the tech lead only with `orca orchestration send --to "run:$(cat <tech-lead run-id file>)"`, subject prefix
   `[From Ideas]` or `[From Ideas, product owner's decision]`, body from a file. Never `orca terminal send` to
   another agent.

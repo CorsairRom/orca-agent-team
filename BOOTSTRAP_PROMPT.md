@@ -18,6 +18,9 @@ each owns a Run, the two monitors run, and one message has gone Ideas → Tech-l
   mailboxes once they have one.
 - A command that waits (`--wait`) gets a Bash timeout above its `--timeout-ms`
   ([gotchas](./docs/gotchas.md#a-mailbox-wait-outlives-its-bash-timeout)).
+- The placeholders in `<...>` are the ones of [`agents/README.md`](./agents/README.md#placeholders), filled from the
+  env file of step 1: `<team repo>` is this repository's root (`$OAT`), `<ideas dir>` is `$IDEAS_DIR`,
+  `<ideas run-id file>` is `$IDEAS_RUN_ID_FILE`, and so on.
 - If a command needs approval and does not get it, skip it, say so, and stop.
 - The only remote operations are the read-only `gh` checks of step 2. Nothing is pushed.
 
@@ -109,28 +112,30 @@ HUB_MAIN="$(yq '.repos[] | select(.kind == "hub") | .main_branch' "$OAT/config/s
 orca worktree create --repo path:"$HUB_PATH" --name Ideas --base-branch "$HUB_MAIN" --no-parent --json
 ```
 
-Read the new worktree's absolute path from the output and keep it as `<Ideas>`. Then:
+Read the new worktree's absolute path from the output and keep it as `<ideas worktree>`. Then:
 
 ```bash
-orca worktree create --repo path:"$HUB_PATH" --name Tech-lead --parent-worktree path:<Ideas> --base-branch "$HUB_MAIN" --json
+orca worktree create --repo path:"$HUB_PATH" --name Tech-lead --parent-worktree path:<ideas worktree> --base-branch "$HUB_MAIN" --json
 orca worktree list --repo path:"$HUB_PATH" --json
 ```
 
-Keep the second worktree's path as `<Tech-lead>`. Write both to the bootstrap folder, one path per file, so later
-steps can read them:
+Keep the second worktree's path as `<tech-lead worktree>`. Write both to the bootstrap folder, one path per file, so
+later steps can read them:
 
 ```bash
-printf '%s\n' '<Ideas>' > "$HOME/.local/share/$STACK_ID/bootstrap/ideas-path.txt"
-printf '%s\n' '<Tech-lead>' > "$HOME/.local/share/$STACK_ID/bootstrap/tech-lead-path.txt"
+printf '%s\n' '<ideas worktree>' > "$HOME/.local/share/$STACK_ID/bootstrap/ideas-path.txt"
+printf '%s\n' '<tech-lead worktree>' > "$HOME/.local/share/$STACK_ID/bootstrap/tech-lead-path.txt"
 ```
 
-Now fill every `<placeholder>` in the two copied checklists, `$IDEAS_DIR/after-start.md` and
-`$TECH_LEAD_DIR/after-start.md`, with this machine's values (the env file and the two paths above). Use the Edit
-tool, not `sed -i`.
+Now fill every placeholder of the [placeholders table](./agents/README.md#placeholders) in the two copied
+checklists, `$IDEAS_DIR/after-start.md` and `$TECH_LEAD_DIR/after-start.md`, with this machine's values from the env
+file (for `<stack.name>`, `$STACK_NAME`). Use the Edit tool, not `sed -i`. Leave the per-message placeholders as
+they are: `<delivery-id>`, `<own run id>`, `<old run id>`, `<dispatch-id>`, `<file>`, `<n>`, `<encoded path>` and
+`<absolute path>`. Replace `<path of every repo in repos[]>` with the expanded `path` of every repository.
 
 **Expected:** two worktrees in the hub, «Ideas» top-level and «Tech-lead» with «Ideas» as its parent; the two
-checklists hold no `<` placeholder left (`grep -n '<[A-Za-z]' "$IDEAS_DIR/after-start.md" "$TECH_LEAD_DIR/after-start.md"`
-prints only code that is meant to stay, such as `<delivery-id>`). The `create` lines are built from
+checklists hold no table placeholder left (`grep -n '<[A-Za-z]' "$IDEAS_DIR/after-start.md" "$TECH_LEAD_DIR/after-start.md"`
+prints only the per-message placeholders listed above). The `create` lines are built from
 `orca worktree create --help` `(unverified)`. If a worktree with that name already exists, reuse it instead of
 creating a second one.
 
@@ -144,20 +149,19 @@ Write Ideas' first prompt to `~/.local/share/<id>/bootstrap/ideas-first.md`, wit
 
 ```text
 You are Ideas, the analyst chat of the <stack.name> agent team. Your role card is
-<OAT>/agents/roles/ideas/SKILL.md and your checklist is <IDEAS_DIR>/after-start.md.
-Do only this now: run the Run step of your checklist as a FIRST START (no prior session). Check
-`orca orchestration run-current --json`; when it shows no Run, create one with
-`orca orchestration run-create --objective "<stack.name> Ideas inbox" --json`, then write its id, only the id, on
-one line, to <IDEAS_RUN_ID_FILE>, and confirm that `orca orchestration run-current --json` shows the same id.
-Then stop. Your next instructions arrive in your Run mailbox with the subject prefix [Bootstrap]. When Orca tells
-you that you have mail, read it with `orca orchestration check --run <your run id> --json`, act on every message,
-and acknowledge the batch with `--ack <deliveryId>`.
+<team repo>/agents/roles/ideas/SKILL.md and your checklist is <ideas dir>/after-start.md.
+This is a FIRST START: there is no prior session, so skip the identity step. Do only steps 2 and 3 of your
+checklist now. Step 2, Run: check `orca orchestration run-current --json`; when it shows no Run, create one with
+`orca orchestration run-create --objective "<stack.name> Ideas inbox" --json`, write its id, only the id, on one
+line, to <ideas run-id file>, and confirm that `orca orchestration run-current --json` shows the same id. Step 3:
+arm your mailbox wait exactly as the checklist says. Then stop. Your next instructions arrive in your Run mailbox
+with the subject prefix [Bootstrap].
 ```
 
 Write the Tech-lead's to `~/.local/share/<id>/bootstrap/tech-lead-first.md` the same way, with
-`<OAT>/agents/roles/tech-lead/SKILL.md`, `<TECH_LEAD_DIR>/after-start.md`, the objective
-`"<stack.name> Tech-lead"` and `<TECH_LEAD_RUN_ID_FILE>`. Add one line: "Messages with the subject prefix
-[PR monitor] or [Worker watch] may arrive before your checklist; read and acknowledge them."
+`<team repo>/agents/roles/tech-lead/SKILL.md`, `<tech-lead dir>/after-start.md`, the objective
+`"<stack.name> tech lead"` (the one its checklist uses) and `<tech-lead run-id file>`. Add one line: "Messages with
+the subject prefix [PR monitor] or [Worker watch] may arrive before your checklist; read and acknowledge them."
 
 Launch Ideas, wait for its Run id file, then launch the Tech-lead:
 
@@ -179,8 +183,9 @@ for i in $(seq 1 40); do test -s "$TECH_LEAD_RUN_ID_FILE" && break; sleep 10; do
 
 Give each of these Bash calls a timeout of 600000 ms (the loop waits up to 400 s).
 
-**Expected:** each launch reports a chat (`outcome.kind`), the Orca app shows a Claude chat tab in each worktree, and
-each Run id file holds one id on one line, not `null`. The launch lines are built from `orca agent launch --help`
+**Expected:** each launch reports a chat (`outcome.kind`), the Orca app shows a Claude chat tab in each worktree,
+each Run id file holds one id on one line, not `null`, and each chat ends its turn with its mailbox wait armed in
+the background. The launch lines are built from `orca agent launch --help`
 `(unverified)` as exact lines.
 
 > **HUMAN — permission prompts.** A new chat may stop on a permission prompt for its first `orca` command. Ask the
@@ -192,22 +197,38 @@ each Run id file holds one id on one line, not `null`. The launch lines are buil
 
 ## Step 6. Start the monitors
 
-The PR monitor and the permission watch run in tmux and post to the Tech-lead's Run mailbox (`notify_mode: run`).
-Install and start them exactly as [`tools/README.md`](./tools/README.md) says, from the env file of step 1. The
-tmux session names, the start lines and the alive-check command are defined there.
+The PR monitor and the permission watch run in tmux, in the sessions `<id>-pr-monitor` and `<id>-worker-watch`, and
+post to the Tech-lead's Run mailbox (`notify_mode: run`). These are the start lines of
+[`tools/README.md`](./tools/README.md#start), with the env file of step 1; stop any copy already running first:
 
-**Expected:** `tmux ls` lists both monitor sessions; the alive check `tools/README.md` gives reports `Sent msg_...`;
-the Tech-lead chat receives a `[PR monitor] ...` message. A first poll of the PR monitor notifies nothing: it records
-a baseline.
+```bash
+ENV_FILE="$HOME/.local/share/$STACK_ID/stack.env"
+tmux kill-session -t "$STACK_ID-pr-monitor" 2>/dev/null; tmux kill-session -t "$STACK_ID-worker-watch" 2>/dev/null
+tmux new-session -d -s "$STACK_ID-pr-monitor"   "STACK_ENV_FILE=$ENV_FILE $OAT/tools/pr-monitor.sh"
+tmux new-session -d -s "$STACK_ID-worker-watch" "STACK_ENV_FILE=$ENV_FILE $OAT/tools/worker-watch.sh"
+tmux ls
+STACK_ENV_FILE="$ENV_FILE" "$OAT/tools/pr-monitor.sh" --notify "alive check"
+tail -n 1 "$MONITOR_DIR/monitor.log"
+```
+
+**Expected:** `tmux ls` lists `<id>-pr-monitor` and `<id>-worker-watch`; the last line of `monitor.log` is the
+orchestration send receipt; the Tech-lead chat wakes on `[PR monitor] alive check`. A first poll of the PR monitor
+notifies nothing: it records a baseline. With `notify_mode: terminal`, use the
+[`terminal` mode](./tools/README.md#terminal-mode) start lines instead. The Tech-lead's checklist (its step 4) stops
+and restarts both sessions under the same names; that is expected.
 
 ## Step 7. Both chats run their after-start checklists
 
-Send each chat, through its own Run, the instruction to run its checklist. Write the body first:
+Ideas started first and its Run exists, so the order is already right. Send each chat, through its own Run, the
+instruction to run its checklist. Write each body first, to `~/.local/share/<id>/bootstrap/ideas-checklist.md` and
+`~/.local/share/<id>/bootstrap/tech-lead-checklist.md`, with `<checklist path>` set to `<ideas dir>/after-start.md`
+and `<tech-lead dir>/after-start.md`:
 
 ```text
-Run your after-start checklist, <checklist path>, now, as a FIRST START: there is no prior session to verify, and
-your Run already exists (keep it). On a first start the Tech-lead sends the first handshake to Ideas, and Ideas
-answers it. Report the result in this chat when you are done.
+Run your after-start checklist, <checklist path>, now, as a FIRST START: the identity check is skipped, your Run
+already exists (keep it), and your mailbox wait is armed (keep exactly one armed). On a first start Ideas does not
+write to the Tech-lead: the Tech-lead's first message to Ideas' Run is the handshake, and Ideas answers it. Report
+the result in this chat when you are done.
 ```
 
 ```bash
@@ -216,9 +237,10 @@ orca orchestration send --to "run:$(cat "$IDEAS_RUN_ID_FILE")" --type status --s
 orca orchestration send --to "run:$(cat "$TECH_LEAD_RUN_ID_FILE")" --type status --subject "[Bootstrap] run your after-start checklist" --body "$(cat "$B/tech-lead-checklist.md")" --json
 ```
 
-**Expected:** each send answers with a message id. Within about two minutes Orca nudges each idle chat, and each
-chat reads its mail and runs its checklist; you see both working in the Orca app. The Tech-lead's checklist ends
-with a `[Tech-lead]` message to Ideas, and Ideas answers it.
+**Expected:** each send answers with a message id. Each chat's armed wait wakes it (or, when its wait is gone, Orca's
+fallback nudge does, within about two minutes); each chat reads its mail and runs its checklist, and you see both
+working in the Orca app. The Tech-lead's checklist sends Ideas the handshake, `[Tech-lead] ready`, and Ideas answers
+with `[From Ideas] handshake received`.
 
 > **HUMAN — when a chat does not react.** If a chat shows no new turn two minutes after the send, ask the human to
 > paste the same body into that chat **in its existing tab** (not a new tab: a new tab is a fresh session).
@@ -245,7 +267,7 @@ for i in $(seq 1 50); do test -s "$IDEAS_DIR/roundtrip-ok.txt" && break; sleep 1
 Give the Bash call a timeout of 600000 ms.
 
 **Expected:** the file holds exactly your token. That proves Ideas → Tech-lead (Ideas' send reached the Tech-lead's
-Run and Orca woke it) and Tech-lead → Ideas (the echo reached Ideas' Run and woke it). The Ideas chat shows the
+Run and woke it) and Tech-lead → Ideas (the echo reached Ideas' Run and woke it). The Ideas chat shows the
 confirmation.
 
 If the file stays empty, apply the **HUMAN** fallback of step 7 to the chat that did not react, then re-run this

@@ -263,25 +263,30 @@ Nobody types into another agent's terminal or chat
 
 ### Receiving
 
-An idle chat bound to a Run receives an Orca nudge, a new prompt, when mail arrives
-([gotchas](./gotchas.md#orca-nudges-an-idle-chat-when-its-run-gets-mail)). No background wait is kept alive. On a
-nudge:
+Each chat keeps one mailbox wait armed, with Claude Code's Bash `run_in_background` and a Bash timeout above
+`--timeout-ms` (`1860000`), never a detached `&`
+([gotchas](./gotchas.md#a-mailbox-wait-outlives-its-bash-timeout)):
 
 ```bash
-orca orchestration check --run <own run id> --json
+orca orchestration check --run <own run id> --wait --timeout-ms 1800000 --json
 ```
 
-The output is the whole Delivery: every unacknowledged message, heartbeats included, and its id in
-`.result.deliveryId`. Read every message and act on each, then acknowledge:
+The wait returns the whole Delivery: every unacknowledged message, heartbeats included, and its id in
+`.result.deliveryId`. Read every message and act on each, then acknowledge and re-arm in one command, also in the
+background:
 
 ```bash
-orca orchestration check --run <own run id> --ack <delivery-id> --json
+orca orchestration check --run <own run id> --ack <delivery-id> --wait --timeout-ms 1800000 --json
 ```
 
-Repeat until `deliveryId` is `null`. A Run replays the same Delivery until it is acknowledged, so an unacknowledged
-batch hides newer mail. When a step must block until a reply (the bootstrap's round trip, for example), use
-`--wait --timeout-ms <n>` with a Bash timeout above `<n>`
-([gotchas](./gotchas.md#a-mailbox-wait-outlives-its-bash-timeout)).
+When a wait times out with nothing, re-arm it without `--ack`. A Run replays the same Delivery until it is
+acknowledged, so an unacknowledged batch hides newer mail.
+
+Orca also nudges an idle chat bound to a Run, with a new prompt, when mail arrives
+([gotchas](./gotchas.md#orca-nudges-an-idle-chat-when-its-run-gets-mail)). That covers a wait that ended or was
+killed, but it is the fallback, not the rule. On a nudge, read with a plain
+`orca orchestration check --run <own run id> --json`, act, acknowledge with `--ack <delivery-id>` until `deliveryId`
+is `null`, then re-arm the wait.
 
 ### Sending
 

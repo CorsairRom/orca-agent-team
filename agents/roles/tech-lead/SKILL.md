@@ -16,11 +16,12 @@ You and Ideas are both Orca chats, each the coordinator of its own Run
 
 - Your Run id is in `<tech-lead run-id file>`, Ideas' in `<ideas run-id file>`. Each holds only the id.
 - Keep `orca orchestration check --run <own run id> --wait --timeout-ms 1800000 --json` armed with Bash
-  `run_in_background`, never a detached `&`. Ideas' mail, your workers' messages and the two monitors' notes all
-  arrive there. On every wake, read the whole Delivery, heartbeats included, act on every message, then acknowledge
-  and re-arm with `check --run <own run id> --ack <delivery-id> --wait --timeout-ms 1800000 --json`, also in the
-  background. On an Orca nudge with no wait running, read with a plain `check --run <own run id> --json`,
-  acknowledge, and re-arm.
+  `run_in_background` and a Bash timeout above it (`1860000`), never a detached `&`. Ideas' mail, your workers'
+  messages and the two monitors' notes all arrive there. On every wake, read the whole Delivery, heartbeats
+  included, act on every message, then acknowledge and re-arm with
+  `check --run <own run id> --ack <delivery-id> --wait --timeout-ms 1800000 --json`, also in the background.
+  Orca's nudge is the fallback, not the rule: on a nudge with no wait running, read with a plain
+  `check --run <own run id> --json`, acknowledge, and re-arm.
 - Reach Ideas only through its Run: write the body to a file in `<tech-lead dir>/briefs/`, then
   `orca orchestration send --to "run:$(cat <ideas run-id file>)" --type status --subject "[Tech-lead] ..." --body "$(cat <file>)"`.
   Never `orca terminal send` to another agent: it overwrites what the human is typing.

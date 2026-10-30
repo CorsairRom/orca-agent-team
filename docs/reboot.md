@@ -42,8 +42,9 @@ Steps marked **HUMAN** need the human in the Orca UI.
    - wakes the Tech-lead with a `[From Ideas]` message to the Tech-lead's Run that carries a confirmation token,
      `PONG-<n>` with a new `<n>` each time.
 4. **HUMAN — reopen the Tech-lead chat** in «Tech-lead» the same way, if it is not among the open tabs. No prompt is
-   needed: Orca nudges an idle chat bound to a Run when mail arrives
-   ([gotchas](./gotchas.md#orca-nudges-an-idle-chat-when-its-run-gets-mail)), so Ideas' wake message starts it.
+   needed: a reopened chat has no armed wait yet, and Orca's fallback nudge to an idle chat bound to a Run
+   ([gotchas](./gotchas.md#orca-nudges-an-idle-chat-when-its-run-gets-mail)) starts it on Ideas' wake message; its
+   checklist then re-arms the wait.
    **When the token does not come back** to Ideas within a few minutes, the human sends the Tech-lead tab, in that
    same tab:
 

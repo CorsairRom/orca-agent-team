@@ -47,14 +47,15 @@ Ideas is reached only through its Run mailbox, never by typing into its terminal
      `.result.run`; `.result.run` itself is verified. In a chat, `run-create` binds no terminal, so the Run's
      coordinator handle is `null`; that is expected.
 
-3. **Arm the mailbox wait** with Bash `run_in_background: true`, never a detached `&`:
+3. **Arm the mailbox wait** with Bash `run_in_background: true` and a Bash `timeout` of `1860000`, above
+   `--timeout-ms`; never a detached `&`:
 
    ```bash
    orca orchestration check --run "$(cat <tech-lead run-id file>)" --wait --timeout-ms 1800000 --json
    ```
 
    On every wake: read the whole Delivery, heartbeats included, act on every message, then acknowledge and re-arm in
-   one command, also with `run_in_background: true`:
+   one command, also with `run_in_background: true` and the same timeout:
 
    ```bash
    orca orchestration check --run "$(cat <tech-lead run-id file>)" --ack <delivery-id> --wait --timeout-ms 1800000 --json
@@ -67,9 +68,9 @@ Ideas is reached only through its Run mailbox, never by typing into its terminal
    `orca.notify_mode` names, as [`tools/README.md`](../../tools/README.md) describes; stop any copy already running
    first. Then send the alive check the tools README names.
 
-   Expected: `tmux ls` lists both monitor sessions, and the alive check arrives in your mailbox. Their messages carry
-   the source in the subject (`[PR monitor] ...`, `[Worker watch] ...`); Orca may show another sender, so trust the
-   subject.
+   Expected: `tmux ls` lists both monitor sessions, `<id>-pr-monitor` and `<id>-worker-watch`, and the alive check
+   arrives in your mailbox. Their messages carry the source in the subject (`[PR monitor] ...`,
+   `[Worker watch] ...`); Orca may show another sender, so trust the subject.
 
 5. **Reconcile the inventory.** **First start: nothing to reconcile; skip to step 6.** Compare the Engram inventory
    `<prefix>/agents/tech-lead-inventory` (project `<engram project>`) with what is alive:
@@ -108,8 +109,8 @@ Ideas is reached only through its Run mailbox, never by typing into its terminal
 ## Standing rules
 
 - After every wake: read the whole Delivery, act, acknowledge, re-arm in the background. Never end a turn without an
-  armed wait. On an Orca nudge with no wait running, read with `orca orchestration check --run <own run id> --json`,
-  acknowledge, and re-arm.
+  armed wait. Orca's nudge is the fallback, not the rule: on a nudge with no wait running, read with
+  `orca orchestration check --run <own run id> --json`, acknowledge, and re-arm.
 - Reach Ideas only with `orca orchestration send --to "run:$(cat <ideas run-id file>)"`, subject prefix
   `[Tech-lead]`, body from a file. Never `orca terminal send` to another agent.
 - Workers run under your Run with `orca orchestration worker-start ... --worktree new-child`; their mail arrives in

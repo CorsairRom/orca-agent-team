@@ -111,13 +111,14 @@ orca orchestration run-current --json | jq -r '.result.run.id' > "$TECH_LEAD_RUN
 against the CLI help, which does not document the JSON shape. Check the file holds one id, not `null`.
 
 Then it starts both monitors detached in tmux, so they survive its own session. Settings go inside the tmux
-command, because an `export` in another shell does not reach a tmux session. With the example stack `acme`
-and this repository cloned at `<repo>`:
+command, because an `export` in another shell does not reach a tmux session. The sessions are named
+`<id>-pr-monitor` and `<id>-worker-watch`. With the example stack `acme` and this repository cloned at
+`<team repo>`:
 
 ```bash
 ENV_FILE=~/.local/share/acme/stack.env
-tmux new-session -d -s acme-pr-monitor   "STACK_ENV_FILE=$ENV_FILE <repo>/tools/pr-monitor.sh"
-tmux new-session -d -s acme-worker-watch "STACK_ENV_FILE=$ENV_FILE <repo>/tools/worker-watch.sh"
+tmux new-session -d -s acme-pr-monitor   "STACK_ENV_FILE=$ENV_FILE <team repo>/tools/pr-monitor.sh"
+tmux new-session -d -s acme-worker-watch "STACK_ENV_FILE=$ENV_FILE <team repo>/tools/worker-watch.sh"
 ```
 
 In `run` mode the worker watch takes no `<run_id>`: it watches the Run whose id is in `RUN_ID_FILE`, re-read on
@@ -127,8 +128,8 @@ every tick, so writing a new id there switches both monitors without a restart.
 
 ```bash
 tmux ls                                                                   # → acme-pr-monitor and acme-worker-watch
-STACK_ENV_FILE=~/.local/share/acme/stack.env <repo>/tools/pr-monitor.sh --once     # → one JSON snapshot; sends nothing
-STACK_ENV_FILE=~/.local/share/acme/stack.env <repo>/tools/worker-watch.sh --once   # → one "tick" line per live worker; sends nothing
+STACK_ENV_FILE=~/.local/share/acme/stack.env <team repo>/tools/pr-monitor.sh --once     # → one JSON snapshot; sends nothing
+STACK_ENV_FILE=~/.local/share/acme/stack.env <team repo>/tools/worker-watch.sh --once   # → one "tick" line per live worker; sends nothing
 ```
 
 `--once` on the worker watch prints `tick no-run-id` while `RUN_ID_FILE` is missing or empty. A first run of the PR
@@ -137,7 +138,7 @@ monitor writes `state.json` and notifies nothing; it reports changes from the se
 To prove the delivery path end to end, send one test line to the Tech-lead's mailbox (this one does send):
 
 ```bash
-STACK_ENV_FILE=~/.local/share/acme/stack.env <repo>/tools/pr-monitor.sh --notify "alive check"
+STACK_ENV_FILE=~/.local/share/acme/stack.env <team repo>/tools/pr-monitor.sh --notify "alive check"
 tail -n 1 ~/.local/share/acme/monitors/monitor.log                       # → the orchestration send receipt
 ```
 
@@ -149,11 +150,11 @@ Set `orca.notify_mode: terminal` and `orca.tech_lead_terminal_title` in the conf
 and start the worker watch with the Run id as its first argument (in this mode it is required):
 
 ```bash
-tmux new-session -d -s acme-pr-monitor   "STACK_ENV_FILE=$ENV_FILE <repo>/tools/pr-monitor.sh"
-tmux new-session -d -s acme-worker-watch "STACK_ENV_FILE=$ENV_FILE <repo>/tools/worker-watch.sh <run_id>"
+tmux new-session -d -s acme-pr-monitor   "STACK_ENV_FILE=$ENV_FILE <team repo>/tools/pr-monitor.sh"
+tmux new-session -d -s acme-worker-watch "STACK_ENV_FILE=$ENV_FILE <team repo>/tools/worker-watch.sh <run_id>"
 ```
 
-`<repo>/tools/pr-monitor.sh --handle` prints the handle of the terminal it would type into; it must not be empty.
+`<team repo>/tools/pr-monitor.sh --handle` prints the handle of the terminal it would type into; it must not be empty.
 
 ## Reference
 
@@ -234,7 +235,8 @@ Keeping `state.json` across a restart avoids a burst of `NEW` lines.
 
 ## Continuous integration
 
-[`.github/workflows/ci.yml`](../.github/workflows/ci.yml) runs on every push and pull request:
+[`.github/workflows/ci.yml`](../.github/workflows/ci.yml) runs on every pull request and on every push to `main`
+or to an `integration/**` branch:
 
 - **shellcheck** v0.11.0 and `bash -n` on `tools/*.sh`. Run them locally with `shellcheck tools/*.sh`.
 - **Example config**: `load-config.sh` validates `config/stack.example.yaml` with yq v4.54.1 and the generated env

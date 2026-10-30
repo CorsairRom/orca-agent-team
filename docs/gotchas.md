@@ -12,28 +12,33 @@ An idle chat that is bound to a Run receives a new prompt from Orca when mail ar
 "You have N orchestration message(s). Run `orca orchestration check --run <run-id>`". This was observed repeatedly
 on coordinator chats, in chat and terminal mode, and after a reopen.
 
-**What to do:** there is no background mailbox wait to keep alive or re-arm. On a nudge, the chat reads the whole
-Delivery with `orca orchestration check --run <own run id> --json`, acts on every message, and acknowledges the
-batch with `orca orchestration check --run <own run id> --ack <deliveryId> --json`. Repeat the plain check with the
-previous `--ack` until `deliveryId` is `null`. A Run replays the same Delivery until it is acknowledged, so an
-unacknowledged batch hides newer mail.
+**What to do:** the nudge is the fallback, not the rule. Each chat keeps one mailbox wait armed in the background,
+`orca orchestration check --run <own run id> --wait --timeout-ms 1800000 --json`, with Bash `run_in_background` and
+a Bash timeout above `--timeout-ms`, and acknowledges and re-arms it after every delivery
+([the Run mailboxes](../agents/README.md#the-run-mailboxes)). The nudge covers a wait that ended or was killed. On a
+nudge, the chat reads the whole Delivery with `orca orchestration check --run <own run id> --json`, acts on every
+message, and acknowledges the batch with `orca orchestration check --run <own run id> --ack <deliveryId> --json`.
+Repeat the plain check with the previous `--ack` until `deliveryId` is `null`, then re-arm the wait. A Run replays
+the same Delivery until it is acknowledged, so an unacknowledged batch hides newer mail.
 
 ### Long background commands are killed by the harness
 
 Claude Code's Bash tool stops a background command at its time limit (30 minutes by default). A chat that relies on
 a background command to stay alive, or to wake it later, loses it silently.
 
-**What to do:** keep long-lived processes out of the chats. The monitors run in tmux sessions; the mailbox relies on
-Orca's nudge, not on a background wait.
+**What to do:** keep long-lived processes out of the chats. The monitors run in tmux sessions. The mailbox wait is
+the one background command a chat keeps: give its Bash call a timeout above its `--timeout-ms`, re-arm it after
+every delivery, and count on Orca's nudge when it is gone anyway.
 
 ### A mailbox wait outlives its Bash timeout
 
 `orca orchestration check --wait --timeout-ms <n>` blocks for up to `<n>` milliseconds. If the Bash call that runs
 it has a shorter timeout, Bash kills it first, and the wait's result, including the `deliveryId`, is lost.
 
-**What to do:** when a step does wait (for example while proving the round trip), give the Bash call a timeout above
-`--timeout-ms`: `--timeout-ms 540000` with a Bash timeout of `600000`. In the foreground, Claude Code's Bash
-timeout is at most 600000 ms, so keep foreground waits under it.
+**What to do:** give every wait's Bash call a timeout above `--timeout-ms`. The armed background wait uses
+`--timeout-ms 1800000` with Bash `run_in_background` and a timeout of `1860000` (a background Bash call accepts up to
+7200000 ms). A foreground wait, for example while proving the round trip, uses `--timeout-ms 540000` with a Bash
+timeout of `600000`: in the foreground, Claude Code's Bash timeout is at most 600000 ms.
 
 ### A Run belongs to the session that created it
 

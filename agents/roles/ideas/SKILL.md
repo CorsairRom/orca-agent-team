@@ -46,10 +46,11 @@ You and the tech lead are both Orca chats, each the coordinator of its own Run
 
 - Your Run id is in `<ideas run-id file>`, the tech lead's in `<tech-lead run-id file>`. Each holds only the id.
 - Keep `orca orchestration check --run <own run id> --wait --timeout-ms 1800000 --json` armed with Bash
-  `run_in_background`. On every wake, read the whole Delivery, relay or act on every message, then acknowledge and
-  re-arm with `check --run <own run id> --ack <delivery-id> --wait --timeout-ms 1800000 --json`, also in the
-  background. On an Orca nudge with no wait running, read with a plain `check --run <own run id> --json`,
-  acknowledge, and re-arm.
+  `run_in_background` and a Bash timeout above it (`1860000`), never a detached `&`. On every wake, read the whole
+  Delivery, relay or act on every message, then acknowledge and re-arm with
+  `check --run <own run id> --ack <delivery-id> --wait --timeout-ms 1800000 --json`, also in the background.
+  Orca's nudge is the fallback, not the rule: on a nudge with no wait running, read with a plain
+  `check --run <own run id> --json`, acknowledge, and re-arm.
 - Write each message to a file in `<ideas dir>/briefs/`, then send it:
   `orca orchestration send --to "run:$(cat <tech-lead run-id file>)" --type status --subject "[From Ideas] ..." --body "$(cat <file>)"`.
   Use `[From Ideas, product owner's decision]` when it carries their decision. Long instructions go in a spec file

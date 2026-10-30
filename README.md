@@ -43,7 +43,10 @@ orca orchestration send --to "run:$(cat ~/.local/share/acme-tech-lead/run-id.txt
 
 - The body is written to a file first and passed with `"$(cat <file>)"`, so the shell never expands its content.
 - Subjects start with `[From Ideas]` or `[Tech-lead]`. The monitors use `[PR monitor]` and `[Worker watch]`.
-- Orca nudges an idle chat bound to a Run when new mail arrives, so nobody keeps a background wait alive.
+- Each chat keeps one mailbox wait armed in the background,
+  `orca orchestration check --run <own run id> --wait --timeout-ms 1800000 --json`, with a Bash timeout above it,
+  and acknowledges and re-arms it after every delivery. Orca also nudges an idle chat bound to a Run when new mail
+  arrives; that covers a wait that ended or was killed, but it is the fallback, not the rule.
 - Nobody types into another agent's terminal or chat.
 - Workers reach the Tech-lead through its Run, with `worker_done`, `ask`, `escalation` and heartbeats.
 

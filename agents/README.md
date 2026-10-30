@@ -24,6 +24,7 @@ The cards and templates are stack-agnostic. Wherever they show one of these, use
 | Placeholder | Meaning | Env file key |
 | --- | --- | --- |
 | `<id>` | `stack.id`, such as `acme` | `STACK_ID` |
+| `<stack.name>` | `stack.name`, the display name, such as `ACME platform` | `STACK_NAME` |
 | `<hub>` | The repository of kind `hub`: Ideas and the tech lead live in its worktrees; PRDs, decisions and the backlog are kept there | `HUB_PATH`, `HUB_REMOTE` |
 | `<team repo>` | The local clone of this repository | none |
 | `<ideas dir>` | `~/.local/share/<id>-ideas`: Ideas' durable folder | `IDEAS_DIR` |
@@ -152,8 +153,8 @@ run-id file. They talk only through those Runs. The steps that set this up are t
   is none); `orca orchestration run-create --objective "<objective>" --json` creates one, and its id goes alone on
   one line into the run-id file.
 - **Arm the wait.** Keep `orca orchestration check --run <own run id> --wait --timeout-ms 1800000 --json` running
-  with Claude Code's Bash `run_in_background`, never a detached `&`: a chat wakes when its background command ends,
-  and a detached process does not wake it.
+  with Claude Code's Bash `run_in_background` and a Bash timeout above `--timeout-ms` (`1860000`), never a detached
+  `&`: a chat wakes when its background command ends, and a detached process does not wake it.
 - **Process, acknowledge, re-arm.** The wait returns the whole Delivery, every unacknowledged message of the Run,
   heartbeats included, with its id in `.result.deliveryId`. Act on every message, then acknowledge and re-arm in
   one command, also in the background:
@@ -162,7 +163,7 @@ run-id file. They talk only through those Runs. The steps that set this up are t
   unacknowledged batch hides newer mail.
 - **When the wait is gone.** The harness can end a long background command, and Orca stops an idle chat's process
   after 30 minutes. Mail is not lost: Orca nudges an idle chat bound to a Run with a new prompt when mail arrives.
-  On a nudge, read with a plain `orca orchestration check --run <own run id> --json`, process, acknowledge with
+  That nudge is the fallback, not the rule. On a nudge, read with a plain `orca orchestration check --run <own run id> --json`, process, acknowledge with
   `--ack <delivery-id>` until `deliveryId` is `null`, then re-arm. See [gotchas](../docs/gotchas.md).
 - **Send** by writing the body to a file in the sender's durable folder first, then:
   `orca orchestration send --to "run:$(cat <peer run-id file>)" --type status --subject "<prefix> <subject>" --body "$(cat <file>)"`.
