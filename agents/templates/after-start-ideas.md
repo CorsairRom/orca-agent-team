@@ -3,16 +3,16 @@
 <!--
 Ideas runs this as the first turn of its chat: once on its FIRST START (the installing chat launches it with this
 file), and again on every RESUME (after a reboot, an Orca restart or a reopen). The prompt that starts the turn says
-which, and gives `<stack.id>`. The reasons behind each step: agents/README.md (The Run mailboxes), docs/reboot.md and
+which, and gives `<stack.id>` and `<env file>`. The reasons behind each step: agents/README.md (The Run mailboxes), docs/reboot.md and
 docs/gotchas.md.
 -->
 
 Run every step in order. Every command block starts by loading the stack's env file, written from
 `config/stack.yaml` as [`tools/README.md`](../../tools/README.md#writing-the-env-file) describes:
-`. ~/.local/share/<stack.id>/stack.env`. Shell variables do not survive between Bash calls, so load it in each
-block; no command here reads `config/stack.yaml`. It sets `$IDEAS_DIR` (`<ideas dir>`), `$IDEAS_RUN_ID_FILE`,
+`. <env file>`. `<env file>` is the env file the prompt that started this turn names; a prompt that names none means the default team's, `~/.local/share/<stack.id>/stack.env` ([teams](../../tools/README.md#teams)). Shell variables do not survive between Bash calls, so
+load it in each block; no command here reads `config/stack.yaml`. It sets `$IDEAS_DIR` (`<ideas dir>`), `$IDEAS_RUN_ID_FILE`,
 `$TECH_LEAD_RUN_ID_FILE`, `$STACK_NAME`, `$ENGRAM_PROJECT` and `$TOPIC_PREFIX`
-([placeholders](../README.md#placeholders)).
+([placeholders](../README.md#placeholders)). If the env file sets no `TEAM_DIR`, it predates [teams](../../tools/README.md#teams): write it again first, with an empty `<team id>`, by [Writing the env file](../../tools/README.md#writing-the-env-file).
 
 1. **Identity.** RESUME only. **FIRST START: there is no prior session; skip to step 2.**
 
@@ -30,7 +30,7 @@ block; no command here reads `config/stack.yaml`. It sets `$IDEAS_DIR` (`<ideas 
 2. **Run.** A Run is bound to the session that created it, so Ideas creates its own, from this chat:
 
    ```bash
-   . ~/.local/share/<stack.id>/stack.env
+   . <env file>
    orca orchestration run-current --json | jq '.result.run'
    cat "$IDEAS_RUN_ID_FILE" 2>/dev/null
    ```
@@ -40,9 +40,9 @@ block; no command here reads `config/stack.yaml`. It sets `$IDEAS_DIR` (`<ideas 
      one line:
 
      ```bash
-     . ~/.local/share/<stack.id>/stack.env
+     . <env file>
      mkdir -p "$IDEAS_DIR/briefs"
-     orca orchestration run-create --objective "$STACK_NAME Ideas inbox" --json
+     orca orchestration run-create --objective "$STACK_NAME Ideas inbox${TEAM_ID:+ ($TEAM_ID)}" --json
      orca orchestration run-current --json | jq -r '.result.run.id' > "$IDEAS_RUN_ID_FILE"
      cat "$IDEAS_RUN_ID_FILE"
      ```
@@ -61,7 +61,7 @@ block; no command here reads `config/stack.yaml`. It sets `$IDEAS_DIR` (`<ideas 
      confirmation).`
 
      ```bash
-     . ~/.local/share/<stack.id>/stack.env
+     . <env file>
      orca orchestration send --to "run:$(cat "$TECH_LEAD_RUN_ID_FILE")" --type status \
        --subject "[From Ideas] handshake received" --body "$(cat <file>)" --json
      ```
@@ -72,7 +72,7 @@ block; no command here reads `config/stack.yaml`. It sets `$IDEAS_DIR` (`<ideas 
      Then:
 
      ```bash
-     . ~/.local/share/<stack.id>/stack.env
+     . <env file>
      orca orchestration send --to "run:$(cat "$TECH_LEAD_RUN_ID_FILE")" --type status \
        --subject "[From Ideas] Ideas is back" --body "$(cat <file>)" --json
      ```
@@ -96,7 +96,7 @@ block; no command here reads `config/stack.yaml`. It sets `$IDEAS_DIR` (`<ideas 
   another agent.
 - A `[Bootstrap]` message comes from the chat that installed the team; do what it asks.
 - **Engram.** Every Engram call passes `project: "<value of $ENGRAM_PROJECT>"` explicitly; read the value once
-  with `. ~/.local/share/<stack.id>/stack.env; echo "$ENGRAM_PROJECT"`. Never ask the product owner which project,
+  with `. <env file>; echo "$ENGRAM_PROJECT"`. Never ask the product owner which project,
   and never pick one from `mem_current_project`: this rule wins over any general memory instruction. The installing
   chat created the project; if a call still answers `unknown_project`, run the project line of
   [bootstrap step 5](../../BOOTSTRAP_PROMPT.md#step-5-create-the-durable-folders-the-engram-project-and-the-two-hub-worktrees) once, retry, and report it ([memory](../README.md#memory)).

@@ -3,18 +3,18 @@
 <!--
 The Tech-lead runs this as the first turn of its chat: once on its FIRST START (the installing chat launches it with
 this file), and again on every RESUME (after a reboot, an Orca restart or a reopen). The prompt that starts the turn
-says which, and gives `<stack.id>` and `<team repo>`. The reasons behind each step: agents/README.md (The Run
+says which, and gives `<stack.id>`, `<team repo>` and `<env file>`. The reasons behind each step: agents/README.md (The Run
 mailboxes), docs/reboot.md and docs/gotchas.md.
 -->
 
 Ideas is reached only through its Run mailbox, never by typing into its chat.
 
 Every command block starts by loading the stack's env file, written from `config/stack.yaml` as
-[`tools/README.md`](../../tools/README.md#writing-the-env-file) describes: `. ~/.local/share/<stack.id>/stack.env`.
+[`tools/README.md`](../../tools/README.md#writing-the-env-file) describes: `. <env file>`. `<env file>` is the env file the prompt that started this turn names; a prompt that names none means the default team's, `~/.local/share/<stack.id>/stack.env` ([teams](../../tools/README.md#teams)).
 Shell variables do not survive between Bash calls, so load it in each block. It sets `$TECH_LEAD_DIR`
 (`<tech-lead dir>`), `$TECH_LEAD_RUN_ID_FILE`, `$IDEAS_RUN_ID_FILE`, `$STACK_ID`, `$STACK_NAME`, `$TEAM_REPO`,
 `$ENGRAM_PROJECT`, `$TOPIC_PREFIX` and the `REPO_<i>_*` keys ([placeholders](../README.md#placeholders)). No
-command here reads `config/stack.yaml`.
+command here reads `config/stack.yaml`. If the env file sets no `TEAM_DIR`, it predates [teams](../../tools/README.md#teams): write it again first, with an empty `<team id>`, by [Writing the env file](../../tools/README.md#writing-the-env-file).
 
 ## Run it in this order
 
@@ -35,7 +35,7 @@ command here reads `config/stack.yaml`.
 2. **Run.** A Run is bound to the session that created it, so the Tech-lead creates its own, from this chat:
 
    ```bash
-   . ~/.local/share/<stack.id>/stack.env
+   . <env file>
    orca orchestration run-current --json | jq '.result.run'
    cat "$TECH_LEAD_RUN_ID_FILE" 2>/dev/null
    ```
@@ -47,9 +47,9 @@ command here reads `config/stack.yaml`.
      them in step 6.
 
      ```bash
-     . ~/.local/share/<stack.id>/stack.env
+     . <env file>
      mkdir -p "$TECH_LEAD_DIR/briefs" "$TECH_LEAD_DIR/reports" "$TECH_LEAD_DIR/pr-bodies"
-     orca orchestration run-create --objective "$STACK_NAME Tech-lead" --json
+     orca orchestration run-create --objective "$STACK_NAME Tech-lead${TEAM_ID:+ ($TEAM_ID)}" --json
      orca orchestration run-current --json | jq -r '.result.run.id' > "$TECH_LEAD_RUN_ID_FILE"
      cat "$TECH_LEAD_RUN_ID_FILE"
      ```
@@ -66,11 +66,12 @@ command here reads `config/stack.yaml`.
 
    ```bash
    bash -c '
-   . ~/.local/share/<stack.id>/stack.env
+   . <env file>
    orca_env=(); while IFS= read -r v; do orca_env+=(-e "$v"); done < <(env | grep "^ORCA_")
-   tmux kill-session -t "$STACK_ID-pr-monitor" 2>/dev/null; tmux kill-session -t "$STACK_ID-worker-watch" 2>/dev/null
-   tmux new-session -d -s "$STACK_ID-pr-monitor"   "${orca_env[@]}" "STACK_ENV_FILE=\"$STACK_ENV_FILE\" \"$TEAM_REPO/tools/pr-monitor.sh\""
-   tmux new-session -d -s "$STACK_ID-worker-watch" "${orca_env[@]}" "STACK_ENV_FILE=\"$STACK_ENV_FILE\" \"$TEAM_REPO/tools/worker-watch.sh\""
+   [ -z "$TEAM_ID" ] || touch "$PR_MONITOR_BRANCHES_FILE"
+   tmux kill-session -t "$TMUX_PREFIX-pr-monitor" 2>/dev/null; tmux kill-session -t "$TMUX_PREFIX-worker-watch" 2>/dev/null
+   tmux new-session -d -s "$TMUX_PREFIX-pr-monitor"   "${orca_env[@]}" "STACK_ENV_FILE=\"$STACK_ENV_FILE\" \"$TEAM_REPO/tools/pr-monitor.sh\""
+   tmux new-session -d -s "$TMUX_PREFIX-worker-watch" "${orca_env[@]}" "STACK_ENV_FILE=\"$STACK_ENV_FILE\" \"$TEAM_REPO/tools/worker-watch.sh\""
    tmux ls
    '
    ```
@@ -78,25 +79,26 @@ command here reads `config/stack.yaml`.
    Then send the alive check from inside the PR monitor's session:
 
    ```bash
-   . ~/.local/share/<stack.id>/stack.env
-   tmux new-window -d -t "$STACK_ID-pr-monitor" "STACK_ENV_FILE=\"$STACK_ENV_FILE\" \"$TEAM_REPO/tools/pr-monitor.sh\" --notify 'alive check'"
+   . <env file>
+   tmux new-window -d -t "$TMUX_PREFIX-pr-monitor" "STACK_ENV_FILE=\"$STACK_ENV_FILE\" \"$TEAM_REPO/tools/pr-monitor.sh\" --notify 'alive check'"
    sleep 5; tail -n 1 "$MONITOR_DIR/monitor.log"
    ```
 
-   Expected: `tmux ls` lists `<stack.id>-pr-monitor` and `<stack.id>-worker-watch`; the last line of `monitor.log`
-   is the send receipt; `[PR monitor] alive check` arrives in your mailbox. After step 6, check its sender with
+   Expected: `tmux ls` lists `$TMUX_PREFIX-pr-monitor` and `$TMUX_PREFIX-worker-watch`; the last line of `monitor.log`
+   is the send receipt; `[PR monitor] alive check` arrives in your mailbox. A named team (`$TEAM_ID` not empty)
+   also has `$PR_MONITOR_BRANCHES_FILE`, empty until you cut its first integration branch. After step 6, check its sender with
    [Check the sender](../../tools/README.md#check-the-sender): it must be the same as your `[Tech-lead] ready`.
    Another sender, or a refused send: run this step again from this chat.
 
 5. **Reconcile the inventory.** RESUME only. Compare the Engram inventory (by default the topic
-   `$TOPIC_PREFIX/agents/tech-lead-inventory`, project `$ENGRAM_PROJECT`) with what is alive:
+   `$INVENTORY_TOPIC`, project `$ENGRAM_PROJECT`) with what is alive:
 
    ```bash
-   . ~/.local/share/<stack.id>/stack.env
+   . <env file>
    tmux ls
    orca worktree list --json
    orca orchestration worker-list --run "$(cat "$TECH_LEAD_RUN_ID_FILE")" --json
-   bash -c '. ~/.local/share/<stack.id>/stack.env; for ((i = 0; i < REPO_COUNT; i++)); do p="REPO_${i}_PATH"; git -C "${!p}" worktree list; done'
+   bash -c '. <env file>; for ((i = 0; i < REPO_COUNT; i++)); do p="REPO_${i}_PATH"; git -C "${!p}" worktree list; done'
    ```
 
    Also `ls` every path the inventory records. Note everything recorded that is not alive: dead workers, missing
@@ -112,7 +114,7 @@ command here reads `config/stack.yaml`.
      `Next: run step 6 of your after-start checklist (report to the product owner).`
 
    ```bash
-   . ~/.local/share/<stack.id>/stack.env
+   . <env file>
    orca orchestration send --to "run:$(cat "$IDEAS_RUN_ID_FILE")" --type status \
      --subject "[Tech-lead] ready" --body "$(cat <file>)" --json
    ```
@@ -124,13 +126,13 @@ command here reads `config/stack.yaml`.
    write Ideas' Run id, only the id, to `$TECH_LEAD_DIR/handshake-ok.txt`, then acknowledge the Delivery:
 
    ```bash
-   . ~/.local/share/<stack.id>/stack.env
+   . <env file>
    cat "$IDEAS_RUN_ID_FILE" > "$TECH_LEAD_DIR/handshake-ok.txt"
    ```
 
    The installing chat reads this file to prove the handshake went both ways.
 
-8. **Memory.** Update the Engram inventory (by default `$TOPIC_PREFIX/agents/tech-lead-inventory`, project
+8. **Memory.** Update the Engram inventory (by default `$INVENTORY_TOPIC`, project
    `$ENGRAM_PROJECT`, passed explicitly as the Engram rule below says; the topic is a default, change it freely): your Run id and objective, the two monitor
    sessions, any retired Run, and what step 5 found lost.
 
@@ -146,7 +148,7 @@ command here reads `config/stack.yaml`.
   ([`tools/README.md`](../../tools/README.md#writing-the-env-file)); a new project has none.
 - A `[Bootstrap]` message comes from the chat that installed the team; do what it asks.
 - **Engram.** Every Engram call passes `project: "<value of $ENGRAM_PROJECT>"` explicitly; read the value once
-  with `. ~/.local/share/<stack.id>/stack.env; echo "$ENGRAM_PROJECT"`. Never ask the product owner which project,
+  with `. <env file>; echo "$ENGRAM_PROJECT"`. Never ask the product owner which project,
   and never pick one from `mem_current_project`: this rule wins over any general memory instruction. The installing
   chat created the project; if a call still answers `unknown_project`, run the project line of
   [bootstrap step 5](../../BOOTSTRAP_PROMPT.md#step-5-create-the-durable-folders-the-engram-project-and-the-two-hub-worktrees) once, retry, and report it ([memory](../README.md#memory)).

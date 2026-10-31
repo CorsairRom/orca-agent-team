@@ -35,7 +35,8 @@ Shared memory: one Engram project, read and written by both chats
 
 Each coordinator owns one Orca **Run**, which is its mailbox. Its id lives in a file:
 `~/.local/share/<stack.id>/ideas/run-id.txt` for Ideas and `~/.local/share/<stack.id>/tech-lead/run-id.txt` for the
-Tech-lead. A message goes to the peer's Run:
+Tech-lead (another [team](#several-teams) keeps them under `~/.local/share/<stack.id>/teams/<team id>/`). A message
+goes to the peer's Run:
 
 ```bash
 orca orchestration send --to "run:$(cat ~/.local/share/acme/tech-lead/run-id.txt)" --type status \
@@ -93,6 +94,13 @@ What the installing chat does, step by step, is [`BOOTSTRAP_PROMPT.md`](./BOOTST
 follow [`docs/reboot.md`](./docs/reboot.md). To remove the team, see the
 [uninstall steps](./docs/setup-guide.md#uninstall).
 
+## Several teams
+
+Two large features that differ should not share one Ideas queue and one Tech-lead context. One stack can run
+several teams, each with its own Ideas, Tech-lead, Runs, monitors and backlog, on the same config, hub and memory.
+To add one, paste the install prompt into a new Orca chat with this sentence added: `Install a new team named
+<team id> on the existing stack.` What is per team and what is shared: [teams](./tools/README.md#teams).
+
 ## Configuring the stack
 
 Everything stack-specific lives in `config/stack.yaml`, your local copy; `.gitignore` keeps it out of commits. The commented example is [`config/stack.example.yaml`](./config/stack.example.yaml); it uses a
@@ -112,10 +120,10 @@ made-up stack called "acme".
 | `monitors` | Poll intervals, the PR author filter and the merged-PR window |
 
 Nothing parses the YAML locally. A chat reads it and writes a shell-sourceable env file,
-`~/.local/share/<id>/stack.env`, which the monitors and the checklists source; how, and every key, is in
+`~/.local/share/<id>/stack.env` (one per [team](#several-teams)), which the monitors and the checklists source; how, and every key, is in
 [Writing the env file](./tools/README.md#writing-the-env-file).
 
-**After a change to `config/stack.yaml`:** ask Ideas or the Tech-lead to regenerate `stack.env` from
+**After a change to `config/stack.yaml`:** ask Ideas or the Tech-lead of each team to regenerate its `stack.env` from
 `config/stack.yaml` ([Writing the env file](./tools/README.md#writing-the-env-file)), then the Tech-lead restarts
 the monitors from its own chat ([start lines](./tools/README.md#start)). A new repository also needs `orca repo add`
 ([setup guide](./docs/setup-guide.md#register-the-repositories)).

@@ -4,7 +4,7 @@ Two monitors that run beside the Tech-lead, and the env file they read:
 
 | Piece | What it does | Runs |
 | --- | --- | --- |
-| [The env file](#writing-the-env-file) | `~/.local/share/<stack.id>/stack.env`: every value of `config/stack.yaml` a bash step needs, as `KEY='value'` lines, plus the conventions file the Tech-lead passes into briefs. The chats and the monitors source it; some keys, such as `MODEL_*`, `LANG_*` and `DELIVERY_*`, only the chats read. A chat writes it from the config; nothing parses the YAML locally | Once at install, and after every config change |
+| [The env file](#writing-the-env-file) | `<team dir>/stack.env`, one per [team](#teams): every value of `config/stack.yaml` a bash step needs, as `KEY='value'` lines, plus the conventions file the Tech-lead passes into briefs. The chats and the monitors source it; some keys, such as `MODEL_*`, `LANG_*` and `DELIVERY_*`, only the chats read. A chat writes it from the config; nothing parses the YAML locally | Once at install, and after every config change |
 | [`pr-monitor.sh`](./pr-monitor.sh) | Polls the pull requests of every repository of the stack and sends the Tech-lead one line per change | In tmux, every 300 s by default |
 | [`worker-watch.sh`](./worker-watch.sh) | Reads Orca's observation of every live worker of the Tech-lead's Orca Run and tells the Tech-lead, once per prompt, when a worker waits on a prompt only a human can answer, or cannot be observed | In tmux, every 20 s by default |
 
@@ -39,6 +39,8 @@ it out of any public fork.
 **1. Read.** Read `<team repo>/config/stack.yaml` whole with the file tool. Do not use a YAML parser. Every key and
 its meaning is documented in [`config/stack.example.yaml`](../config/stack.example.yaml). Find `<home>` with
 `echo "$HOME"`; a test run may use a scratch directory as `<home>` instead, and then writes everything below it.
+Find `<team id>`: the team id the install prompt names, or `TEAM_ID` in the env file you are rewriting; empty for
+the default team ([teams](#teams)).
 
 **2. Validate.** Check every rule below and collect every problem, each as `<key>: <what is wrong>`, such as
 `repos[1].kind: one of hub | frontend | backend | docs | infra | other`. A boolean is an unquoted `true` or
@@ -47,6 +49,7 @@ its meaning is documented in [`config/stack.example.yaml`](../config/stack.examp
 | Key | Rule |
 | --- | --- |
 | the file | A YAML mapping |
+| `<team id>` | Empty, or lowercase letters, digits and hyphens only (`[a-z0-9-]+`) |
 | `stack.id` | Required; lowercase letters, digits and hyphens only (`[a-z0-9-]+`) |
 | `stack.name` | Required; a non-empty string |
 | `repos` | Required; a non-empty list of mappings; exactly one entry with `kind: hub`; no two entries with the same `name` |
@@ -69,24 +72,26 @@ its meaning is documented in [`config/stack.example.yaml`](../config/stack.examp
 If there is any problem, write nothing. Tell the human every problem in one message, fix them in
 `config/stack.yaml` with the human, and start again from step 1.
 
-**3. Write.** With the editor tool, write `<home>/.local/share/<stack.id>/stack.env`: a first line
+**3. Write.** With the editor tool, write `<TEAM_DIR>/stack.env` (table below): a first line
 `# Written from <team repo>/config/stack.yaml by a chat; edit the config, not this file.`, then one `KEY='value'`
 line per key, in the order of the table below. Every value is in single quotes; a `'` inside a value is written
 `'\''`. Write every path absolute: `<home>` instead of a leading `~`, both in the derived paths and in `repos[].path`.
 `<i>` counts the repositories from `0`, in config order. An optional key that is missing takes the default shown.
-Every derived path lies in one local-share tree, `<home>/.local/share/<stack.id>/`
-([durable folders](../docs/setup-guide.md#durable-folders)). The placeholder each key stands for in the docs, and
+Every derived path lies in the team's tree, `TEAM_DIR`, inside the stack's local-share tree
+`<home>/.local/share/<stack.id>/` ([durable folders](../docs/setup-guide.md#durable-folders)). The placeholder each key stands for in the docs, and
 who fills it, is in the [placeholder table](../agents/README.md#placeholders).
 
 | Keys | Value |
 | --- | --- |
 | `STACK_ID`, `STACK_NAME` | `stack.id`, `stack.name` |
 | `STACK_DIR` | `<home>/.local/share/<stack.id>` |
-| `STACK_ENV_FILE` | `<STACK_DIR>/stack.env`: this file |
-| `BOOTSTRAP_DIR` | `<STACK_DIR>/bootstrap`: the installing chat's folder |
+| `TEAM_ID` | `<team id>`; empty for the default team |
+| `TEAM_DIR` | `<STACK_DIR>` for the default team; `<STACK_DIR>/teams/<team id>` for a named team |
+| `STACK_ENV_FILE` | `<TEAM_DIR>/stack.env`: this file |
+| `BOOTSTRAP_DIR` | `<TEAM_DIR>/bootstrap`: the installing chat's folder |
 | `TEAM_REPO` | The absolute path of this repository's clone, the one whose `config/stack.yaml` you read |
 | `HUB_NAME`, `HUB_PATH`, `HUB_REMOTE`, `HUB_MAIN_BRANCH` | `name`, `path`, `remote` and `main_branch` of the repository of kind `hub` |
-| `HUB_PRDS_DIR`, `HUB_DECISIONS_DIR`, `HUB_BACKLOG_FILE` | `hub.prds_dir`, `hub.decisions_dir`, `hub.backlog_file`, relative to `HUB_PATH`; default `docs/prd`, `docs/decisions`, `BACKLOG.md` |
+| `HUB_PRDS_DIR`, `HUB_DECISIONS_DIR`, `HUB_BACKLOG_FILE` | `hub.prds_dir`, `hub.decisions_dir`, `hub.backlog_file`, relative to `HUB_PATH`; default `docs/prd`, `docs/decisions`, `BACKLOG.md`. A named team inserts `-<team id>` before the extension of the backlog file, such as `BACKLOG-<team id>.md`: each Tech-lead is the only writer of its own backlog |
 | `DELIVERY_INTEGRATION_BRANCH_PER_FEATURE`, `DELIVERY_OWNER_MERGES_MAIN` | `delivery.integration_branch_per_feature`, `delivery.owner_merges_main`: `true` or `false`; default `true` |
 | `REPO_COUNT` | The number of entries of `repos` |
 | `REPO_<i>_NAME`, `REPO_<i>_PATH`, `REPO_<i>_REMOTE`, `REPO_<i>_MAIN_BRANCH`, `REPO_<i>_KIND` | The five keys of `repos[<i>]`, for every `<i>` from `0` to `REPO_COUNT - 1` |
@@ -96,11 +101,15 @@ who fills it, is in the [placeholder table](../agents/README.md#placeholders).
 | `APP_COPY_RULES` | `language.app_copy_rules`, one rule per line inside the quotes; default empty |
 | `MODEL_<ROLE>`, `EFFORT_<ROLE>` | `models.<role>.model` and `.effort`, for `<ROLE>` `IDEAS`, `TECH_LEAD`, `SENIOR`, `MID`, `JUNIOR` (`models.ideas`, `models.tech_lead`, `models.senior`, `models.mid`, `models.junior`) |
 | `ORCA_CHAT_UI`, `ORCA_AGENT_SLEEP`, `ORCA_AGENT_DASHBOARD` | `orca.chat_ui`, `orca.agent_sleep`, `orca.agent_dashboard`; default `true`, `false`, `true` |
-| `IDEAS_DIR`, `TECH_LEAD_DIR` | `<STACK_DIR>/ideas`, `<STACK_DIR>/tech-lead`: the durable folders of Ideas and the Tech-lead |
+| `IDEAS_DIR`, `TECH_LEAD_DIR` | `<TEAM_DIR>/ideas`, `<TEAM_DIR>/tech-lead`: the durable folders of Ideas and the Tech-lead |
+| `IDEAS_WORKTREE_NAME`, `TECH_LEAD_WORKTREE_NAME` | `Ideas` and `Tech-lead` for the default team; `Ideas-<team id>` and `Tech-lead-<team id>` for a named team: the names of the two hub worktrees |
 | `IDEAS_RUN_ID_FILE`, `TECH_LEAD_RUN_ID_FILE` | `<IDEAS_DIR>/run-id.txt`, `<TECH_LEAD_DIR>/run-id.txt` |
 | `RUN_ID_FILE` | The same as `TECH_LEAD_RUN_ID_FILE`: the Run the monitors send to |
 | `CONVENTIONS_FILE` | `<TECH_LEAD_DIR>/conventions.txt` |
-| `MONITOR_DIR` | `<STACK_DIR>/monitors`: state and logs of both monitors; the monitors stop without it |
+| `MONITOR_DIR` | `<TEAM_DIR>/monitors`: state and logs of both monitors; the monitors stop without it |
+| `TMUX_PREFIX` | `<stack.id>` for the default team; `<stack.id>-<team id>` for a named team: the monitors run in the tmux sessions `<TMUX_PREFIX>-pr-monitor` and `<TMUX_PREFIX>-worker-watch` |
+| `INVENTORY_TOPIC` | `<prefix>/agents/tech-lead-inventory` for the default team; `<prefix>/agents/<team id>/tech-lead-inventory` for a named team: the Engram topic of the Tech-lead's inventory |
+| `PR_MONITOR_BRANCHES_FILE` | `<TECH_LEAD_DIR>/branches.txt`: the team's integration branches; when the file exists, the PR monitor reports only their PRs ([teams](#teams)) |
 | `PR_INTERVAL_SECONDS`, `WATCH_INTERVAL_SECONDS` | `monitors.pr_interval_seconds`, `monitors.watch_interval_seconds`; default `300`, `20` |
 | `PR_MONITOR_AUTHOR`, `PR_MONITOR_MERGED_DAYS` | `monitors.pr_author`, `monitors.merged_window_days`; default `@me`, `2` |
 
@@ -110,17 +119,20 @@ quotes; an empty file when the list is empty or missing. The Tech-lead pastes it
 **4. Read back.** Run, with the path you wrote:
 
 ```bash
-bash -c 'set -eu; . "$1"; for k in STACK_ID STACK_DIR STACK_ENV_FILE BOOTSTRAP_DIR TEAM_REPO HUB_PATH HUB_MAIN_BRANCH REPO_COUNT MODEL_IDEAS EFFORT_IDEAS MODEL_TECH_LEAD EFFORT_TECH_LEAD IDEAS_DIR TECH_LEAD_DIR IDEAS_RUN_ID_FILE TECH_LEAD_RUN_ID_FILE RUN_ID_FILE CONVENTIONS_FILE MONITOR_DIR; do printf "%s=%s\n" "$k" "${!k}"; done
+bash -c 'set -eu; . "$1"; for k in STACK_ID TEAM_ID STACK_DIR TEAM_DIR STACK_ENV_FILE BOOTSTRAP_DIR TEAM_REPO HUB_PATH HUB_MAIN_BRANCH HUB_BACKLOG_FILE REPO_COUNT MODEL_IDEAS EFFORT_IDEAS MODEL_TECH_LEAD EFFORT_TECH_LEAD IDEAS_DIR TECH_LEAD_DIR IDEAS_WORKTREE_NAME TECH_LEAD_WORKTREE_NAME IDEAS_RUN_ID_FILE TECH_LEAD_RUN_ID_FILE RUN_ID_FILE CONVENTIONS_FILE MONITOR_DIR TMUX_PREFIX INVENTORY_TOPIC PR_MONITOR_BRANCHES_FILE; do printf "%s=%s\n" "$k" "${!k}"; done
   for ((i = 0; i < REPO_COUNT; i++)); do p="REPO_${i}_PATH"; r="REPO_${i}_REMOTE"; k="REPO_${i}_KIND"; printf "%s %s %s\n" "${!k}" "${!r}" "${!p}"; done
-  cat "$CONVENTIONS_FILE"' _ <home>/.local/share/<stack.id>/stack.env
+  cat "$CONVENTIONS_FILE"' _ <TEAM_DIR>/stack.env
 ```
 
-**Expected:** the file sources with no error; every value matches `config/stack.yaml`; every path is absolute and
-lies under `<home>/.local/share/<stack.id>/`, except `TEAM_REPO`, `HUB_PATH` and the repositories; one line per
+**Expected:** the file sources with no error; every value matches `config/stack.yaml` and `<team id>`; every path
+is absolute and lies under `TEAM_DIR`, except `TEAM_REPO`, `HUB_PATH` and the repositories; one line per
 repository; the conventions file holds the `conventions` list. On a mismatch, fix the file and read it
 back again. Then show the human the output.
 
 Edit the configuration, not these two files: they are written again after every config change.
+
+An env file written before [teams](#teams) existed lacks `TEAM_ID`, `TEAM_DIR`, `TMUX_PREFIX` and the other
+per-team keys. Write it again, with an empty `<team id>`, before the next resume: the checklists check for `TEAM_DIR`.
 
 ## How the monitors read their settings
 
@@ -159,7 +171,7 @@ A tmux session takes its environment from the tmux server, which holds the envir
 server, possibly another chat ([gotchas](../docs/gotchas.md#a-tmux-session-sends-under-the-identity-it-was-started-with)).
 So the start lines pass every `ORCA_*` variable of the starting chat with `tmux new-session -e`, and the settings
 go inside the tmux command, because an `export` in another shell does not reach a tmux session. The sessions are
-named `<stack.id>-pr-monitor` and `<stack.id>-worker-watch`. With the example stack `acme`, these lines stop any
+named `<TMUX_PREFIX>-pr-monitor` and `<TMUX_PREFIX>-worker-watch`. With the example stack `acme`, these lines stop any
 copy already running and start both; every value comes from the env file. They need bash, so they run as
 `bash -c '...'` whatever the chat's shell is:
 
@@ -167,9 +179,9 @@ copy already running and start both; every value comes from the env file. They n
 bash -c '
 . ~/.local/share/acme/stack.env
 orca_env=(); while IFS= read -r v; do orca_env+=(-e "$v"); done < <(env | grep "^ORCA_")
-tmux kill-session -t "$STACK_ID-pr-monitor" 2>/dev/null; tmux kill-session -t "$STACK_ID-worker-watch" 2>/dev/null
-tmux new-session -d -s "$STACK_ID-pr-monitor"   "${orca_env[@]}" "STACK_ENV_FILE=\"$STACK_ENV_FILE\" \"$TEAM_REPO/tools/pr-monitor.sh\""
-tmux new-session -d -s "$STACK_ID-worker-watch" "${orca_env[@]}" "STACK_ENV_FILE=\"$STACK_ENV_FILE\" \"$TEAM_REPO/tools/worker-watch.sh\""
+tmux kill-session -t "$TMUX_PREFIX-pr-monitor" 2>/dev/null; tmux kill-session -t "$TMUX_PREFIX-worker-watch" 2>/dev/null
+tmux new-session -d -s "$TMUX_PREFIX-pr-monitor"   "${orca_env[@]}" "STACK_ENV_FILE=\"$STACK_ENV_FILE\" \"$TEAM_REPO/tools/pr-monitor.sh\""
+tmux new-session -d -s "$TMUX_PREFIX-worker-watch" "${orca_env[@]}" "STACK_ENV_FILE=\"$STACK_ENV_FILE\" \"$TEAM_REPO/tools/worker-watch.sh\""
 tmux ls
 '
 ```
@@ -196,7 +208,7 @@ tmux session, so it carries the session's identity (this one does send):
 
 ```bash
 . ~/.local/share/acme/stack.env
-tmux new-window -d -t "$STACK_ID-pr-monitor" "STACK_ENV_FILE=\"$STACK_ENV_FILE\" \"$TEAM_REPO/tools/pr-monitor.sh\" --notify 'alive check'"
+tmux new-window -d -t "$TMUX_PREFIX-pr-monitor" "STACK_ENV_FILE=\"$STACK_ENV_FILE\" \"$TEAM_REPO/tools/pr-monitor.sh\" --notify 'alive check'"
 sleep 5; tail -n 1 "$MONITOR_DIR/monitor.log"                             # → the orchestration send receipt
 ```
 
@@ -228,12 +240,14 @@ Tech-lead's checklist restarts the monitors on every resume, and the alive check
 | `PR_MONITOR_REPOS` | required | Space-separated `owner/repo` list it polls |
 | `PR_MONITOR_AUTHOR` | `@me` | `gh pr list --author` filter: the PRs opened by the `gh` account |
 | `PR_MONITOR_MERGED_DAYS` | `2` | A merged PR stays in the snapshot this many days |
+| `PR_MONITOR_BRANCHES_FILE` | none | When set and the file exists, only PRs whose base or head branch is a line of the file are kept |
 | `MONITOR_DIR` | required | Where `state.json`, `monitor.log` and `pending.txt` live |
 | `RUN_ID_FILE` | `TECH_LEAD_RUN_ID_FILE` | The file holding the Run id it sends to; required except with `--once` |
 | `ORCA_BIN` | `orca`, else `orca-ide` | Orca CLI |
 
 What it watches: per repository, `gh pr list --author <author> --state all --limit 40`, keeping open PRs and PRs
-merged within the window. It diffs each snapshot against `state.json` and sends one `[PR monitor] ...` line per
+merged within the window, and, when `PR_MONITOR_BRANCHES_FILE` names an existing file, only the PRs whose base or
+head branch is listed in it ([teams](#teams)). It diffs each snapshot against `state.json` and sends one `[PR monitor] ...` line per
 poll with every change: `NEW <repo>#<n> <state> -> <base>`, `state A->B`, `ready for review` / `back to draft`,
 `review decision A->B`, `new review (<state>)`, `<n> new comment(s)`.
 
@@ -282,7 +296,7 @@ The Tech-lead then reports the prompt and its safety read to Ideas; the human de
 
 ## Logs and state
 
-All in `MONITOR_DIR`, `~/.local/share/<stack.id>/monitors`, outside every repository:
+All in `MONITOR_DIR`, `<team dir>/monitors`, outside every repository:
 
 | File | Written by | Holds |
 | --- | --- | --- |
@@ -301,10 +315,29 @@ tmux kill-session -t acme-pr-monitor
 tmux kill-session -t acme-worker-watch
 ```
 
+A named team's sessions carry its `TMUX_PREFIX`, such as `acme-billing-pr-monitor`.
+
 Both die on reboot and nothing restarts them: the Tech-lead restarts them with the start commands above, as part
 of the [reboot procedure](../docs/reboot.md). After a configuration change, follow
 [Configuring the stack](../README.md#configuring-the-stack) in the README. A new Tech-lead Run needs no restart: writing its id to `RUN_ID_FILE` is enough.
 Keeping `state.json` across a restart avoids a burst of `NEW` lines.
+
+## Teams
+
+One stack can run several teams at once, each with its own Ideas, Tech-lead, Runs, monitors and backlog, so that
+two large features do not share one product-owner queue or one Tech-lead context
+([setup guide](../docs/setup-guide.md#several-teams-on-one-stack)). A team is chosen when its env file is written:
+
+- **The default team** has an empty `<team id>`. Its paths, worktree names and tmux sessions are the ones every
+  example in these docs shows.
+- **A named team** has a `<team id>` such as `billing`. Everything that belongs to one team is derived from it:
+  `TEAM_DIR`, the worktree names, `TMUX_PREFIX`, `INVENTORY_TOPIC` and the backlog file. The stack's
+  `config/stack.yaml`, the Engram project and the hub's PRD and decision folders stay shared.
+
+The PR monitor polls with `--author`, which is the same `gh` account for every team. So a Tech-lead that is not
+alone on the stack keeps `PR_MONITOR_BRANCHES_FILE`: the feature branches its PRs target or come from, one per
+line. A named team's Tech-lead creates the file, empty, on its first start; while it is empty, its monitor reports
+nothing. A team whose file does not exist sees every PR of the account, as before.
 
 ## Continuous integration
 

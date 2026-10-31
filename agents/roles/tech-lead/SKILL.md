@@ -59,6 +59,9 @@ back to Ideas.
   integration branch when `true`, the repository's main branch when `false`. Before a feature starts, run
   `git fetch origin` on each target repository and, when it is an integration branch, cut (or update) it from the
   fresh `origin/<main-line>`.
+- **Team branches.** When `$PR_MONITOR_BRANCHES_FILE` exists (always for a named team), add each integration
+  branch you cut or receive, the hub branch of the PRD included, one per line, so the PR monitor reports only your
+  team's PRs ([teams](../../../tools/README.md#teams)). Remove a branch when its feature is merged into the main line.
 - One standing Run, yours, reused across features. Record its id and objective in your inventory. One task per
   work unit; `--deps` only for real contracts.
 - In a wide feature, the first task writes the contract (API schema, file ownership, shared registries). Anything
@@ -97,7 +100,7 @@ back to Ideas.
   instead of waiting silently; read an unobservable worker by hand with the `worker-read` line it sends.
 - **Inventory:** your Run, every worktree, subagent worktree, worker terminal, tmux session, container, database
   and test-data path you open, with where it lives, why, and when it is removed. Update it on every open and every
-  removal. By default it is the Engram topic `<prefix>/agents/tech-lead-inventory` (project `<engram project>`).
+  removal. By default it is the Engram topic `<inventory topic>` (project `<engram project>`).
 - **Review and QA** ([review and QA](../../README.md#review-and-qa)): an independent reviewer for every high-risk
   unit, with the correction rounds of the [template defaults](../../README.md#template-defaults) and a recheck
   limited to those blockers; when no unit was high risk, one reviewer on the integrated result. QA when the feature

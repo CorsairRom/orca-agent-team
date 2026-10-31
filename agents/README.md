@@ -29,6 +29,9 @@ and again after every config change).
 | Placeholder or key | Meaning | Who fills it | When |
 | --- | --- | --- | --- |
 | `<stack.id>`, `STACK_ID` | `stack.id`, such as `acme`; it names the local-share tree `~/.local/share/<stack.id>/` | Config | Install |
+| `<team id>`, `TEAM_ID` | The team this chat belongs to: empty for the default team, a name such as `billing` for another team on the same stack ([teams](../tools/README.md#teams)) | The installing chat, asking the human | Install |
+| `<team dir>`, `TEAM_DIR` | `~/.local/share/<stack.id>` for the default team, `~/.local/share/<stack.id>/teams/<team id>` for a named team: every local path of one team | Env file | Install |
+| `<env file>`, `STACK_ENV_FILE` | `<team dir>/stack.env`; the first and resume prompts of both chats name it | Env file | Install |
 | `<stack.name>`, `STACK_NAME` | `stack.name`, the display name, such as `ACME platform` | Config | Install |
 | `<hub path>`, `HUB_PATH` | The local clone of the repository of kind `hub`: Ideas and the tech lead work in its worktrees, and it keeps the planning documents | Config | Install |
 | `<hub.prds_dir>`, `<hub.decisions_dir>`, `<hub.backlog_file>`; `HUB_PRDS_DIR`, `HUB_DECISIONS_DIR`, `HUB_BACKLOG_FILE` | Where the hub keeps PRDs, decisions and the backlog, relative to the hub (defaults `docs/prd`, `docs/decisions`, `BACKLOG.md`) | Config | Install |
@@ -38,9 +41,12 @@ and again after every config change).
 | `<prefix>`, `TOPIC_PREFIX` | `memory.topic_prefix`: the first segment of every topic key | Config | Install |
 | `<model>`, `<effort>`; `MODEL_<KEY>`, `EFFORT_<KEY>` | A role's or a seniority level's `models.<key>.model` and `.effort` | Config | Install |
 | `<team repo>`, `TEAM_REPO` | The local clone of this repository | Env file | Install |
-| `<ideas dir>`, `IDEAS_DIR` | `~/.local/share/<stack.id>/ideas`: Ideas' durable folder | Env file | Install |
-| `<tech-lead dir>`, `TECH_LEAD_DIR` | `~/.local/share/<stack.id>/tech-lead`: the tech lead's durable folder | Env file | Install |
-| `<bootstrap dir>`, `BOOTSTRAP_DIR` | `~/.local/share/<stack.id>/bootstrap`: the installing chat's folder | Env file | Install |
+| `<ideas dir>`, `IDEAS_DIR` | `<team dir>/ideas`: Ideas' durable folder | Env file | Install |
+| `<tech-lead dir>`, `TECH_LEAD_DIR` | `<team dir>/tech-lead`: the tech lead's durable folder | Env file | Install |
+| `<ideas worktree name>`, `<tech-lead worktree name>`; `IDEAS_WORKTREE_NAME`, `TECH_LEAD_WORKTREE_NAME` | `Ideas` and `Tech-lead`, or `Ideas-<team id>` and `Tech-lead-<team id>` for a named team | Env file | Install |
+| `<tmux prefix>`, `TMUX_PREFIX` | `<stack.id>`, or `<stack.id>-<team id>` for a named team: the prefix of the two monitor sessions | Env file | Install |
+| `<inventory topic>`, `INVENTORY_TOPIC` | The Engram topic of the tech lead's inventory: `<prefix>/agents/tech-lead-inventory`, or `<prefix>/agents/<team id>/tech-lead-inventory` for a named team | Env file | Install |
+| `<bootstrap dir>`, `BOOTSTRAP_DIR` | `<team dir>/bootstrap`: the installing chat's folder | Env file | Install |
 | `<ideas run-id file>`, `IDEAS_RUN_ID_FILE` | `<ideas dir>/run-id.txt`, holding Ideas' Run id, only the id, on one line | The path: env file. The id: Ideas | Ideas' first turn, and whenever it creates a new Run |
 | `<tech-lead run-id file>`, `TECH_LEAD_RUN_ID_FILE`, `RUN_ID_FILE` | `<tech-lead dir>/run-id.txt`, holding the tech lead's Run id; the monitors send to it | The path: env file. The id: the tech lead | The tech lead's first turn, and whenever it creates a new Run |
 | `<own run id>` | The id in the reading chat's own run-id file | The chat, with `cat` | Every mailbox check |
@@ -274,7 +280,7 @@ orca orchestration worker-start \
 - **Orca has no merge command:** `merge_ready` is only a message. Merges follow the configured
   [delivery](#delivery).
 - **Monitors.** Before the first PR of a feature, the PR monitor and the worker watch run in the tmux sessions
-  `<stack.id>-pr-monitor` and `<stack.id>-worker-watch` and post to the tech lead's Run mailbox, as
+  `<tmux prefix>-pr-monitor` and `<tmux prefix>-worker-watch` and post to the tech lead's Run mailbox, as
   [`tools/README.md`](../tools/README.md) describes. The PR monitor covers every open PR the tech lead owns or hands
   to the product owner. The worker watch reports a worker waiting on a prompt only a human can answer once per prompt,
   and a worker it cannot observe; the tech lead reports each wait to Ideas at once, with the exact prompt and its
@@ -309,7 +315,7 @@ orca orchestration worker-start \
 - The tech lead keeps an inventory of everything it opens: its standing Run (id and objective), every worktree,
   worker terminal, tmux session, container, database and test-data path, with where it lives, why, and when it is
   removed. It is updated on every open and every removal. By default it lives in Engram, topic
-  `<prefix>/agents/tech-lead-inventory` (project `<engram project>`); change it freely.
+  `<inventory topic>` (project `<engram project>`); change it freely.
 - When a feature is merged into its main line, the tech lead checks that every worktree of the feature is clean
   (`git status --porcelain` empty, nothing unpushed) and removes them with `orca worktree rm --worktree <selector>`.
   Remote branches stay. A worktree that is not clean is reported, not removed.
