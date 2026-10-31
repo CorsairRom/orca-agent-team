@@ -68,7 +68,8 @@ refers to this table for versions.
 | `bash` | 4 | `bash --version` | The tools and the `bash -c '...'` blocks of the bootstrap |
 | Engram, registered as Claude Code's MCP server | 3.4.0, the version the [project rule](./agents/README.md#memory) is checked on | `engram version`; `claude mcp list` | The shared memory of both chats. Install it as [its own README](https://github.com/Gentleman-Programming/engram#readme) says ([setup guide](./docs/setup-guide.md#engram)) |
 
-The tools also need the GNU core utilities; [`tools/README.md`](./tools/README.md#requirements) lists them.
+The tools run on Linux and macOS with the system's own utilities; [`tools/README.md`](./tools/README.md#requirements)
+lists them.
 
 ## Install
 

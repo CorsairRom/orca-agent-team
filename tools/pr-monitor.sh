@@ -50,6 +50,9 @@ RUN_ID_FILE="${RUN_ID_FILE:-${TECH_LEAD_RUN_ID_FILE:-}}"
 if [ "${1:-}" != "--once" ] && [ -z "$RUN_ID_FILE" ]; then echo "sending needs RUN_ID_FILE or TECH_LEAD_RUN_ID_FILE" >&2; exit 2; fi
 mkdir -p "$DIR"
 
+# Log timestamps and date math use only POSIX date and jq, so the monitor runs on Linux and macOS alike.
+stamp() { date +%Y-%m-%dT%H:%M:%S%z; }
+
 # The team's branches as a JSON array, or null when no branches file exists: then every PR is kept.
 branches() {
   if [ -n "$BRANCHES_FILE" ] && [ -f "$BRANCHES_FILE" ]; then
@@ -60,11 +63,13 @@ branches() {
 }
 
 snapshot() {
-  local b; b="$(branches)" || return 1
+  local b since
+  b="$(branches)" || return 1
+  since="$(jq -rn --argjson d "$MERGED_DAYS" 'now - $d * 86400 | strftime("%Y-%m-%dT%H:%M:%SZ")')" || return 1
   for r in "${REPOS[@]}"; do
     gh pr list -R "$r" --author "$AUTHOR" --state all --limit 40 \
       --json number,state,isDraft,mergedAt,reviewDecision,title,url,comments,reviews,baseRefName,headRefName \
-      --jq ".[] | select(.state==\"OPEN\" or ((.mergedAt // \"\") > \"$(date -u -d "-$MERGED_DAYS days" +%FT%TZ)\")) | {key: \"$r#\(.number)\", url, title: .title[0:60], base: .baseRefName, head: .headRefName, state, draft: .isDraft, decision: (.reviewDecision // \"\"), comments: (.comments|length), reviews: (.reviews|length), last_review: ((.reviews|last|.state) // \"\")}" \
+      --jq ".[] | select(.state==\"OPEN\" or ((.mergedAt // \"\") > \"$since\")) | {key: \"$r#\(.number)\", url, title: .title[0:60], base: .baseRefName, head: .headRefName, state, draft: .isDraft, decision: (.reviewDecision // \"\"), comments: (.comments|length), reviews: (.reviews|length), last_review: ((.reviews|last|.state) // \"\")}" \
       2>>"$LOG" || return 1
   done | jq -s --argjson b "$b" 'map(select($b == null or (.base as $x | any($b[]; . == $x)) or (.head as $y | any($b[]; . == $y)))) | map({(.key): .}) | add // {}'
 }
@@ -77,7 +82,7 @@ send_run() {
 
 notify() {
   local r; r="$(run_id)"
-  if [ -z "$r" ]; then echo "$(date -Is) no run id in $RUN_ID_FILE; pending: $1" >>"$LOG"; echo "$1" >>"$DIR/pending.txt"; return; fi
+  if [ -z "$r" ]; then echo "$(stamp) no run id in $RUN_ID_FILE; pending: $1" >>"$LOG"; echo "$1" >>"$DIR/pending.txt"; return; fi
   if [ -s "$DIR/pending.txt" ]; then
     send_run "$r" "(delayed) $(tr '\n' ' ' <"$DIR/pending.txt")" && : >"$DIR/pending.txt"
   fi
@@ -101,11 +106,11 @@ while true; do
                 (if $b.comments > $a.comments then "\($b.comments - $a.comments) new comment(s)" else empty end) ]
               | if length > 0 then "\($k): \(join(", ")) \($b.url)" else empty end )
           end ] | join(" | ")')"
-      [ -n "$MSG" ] && { echo "$(date -Is) $MSG" >>"$LOG"; notify "$MSG"; }
+      [ -n "$MSG" ] && { echo "$(stamp) $MSG" >>"$LOG"; notify "$MSG"; }
     fi
     echo "$NEW" >"$STATE"
   else
-    echo "$(date -Is) snapshot failed" >>"$LOG"
+    echo "$(stamp) snapshot failed" >>"$LOG"
   fi
   sleep "$INTERVAL"
 done

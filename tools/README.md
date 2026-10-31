@@ -23,10 +23,10 @@ The minimum versions are in the [README](../README.md#prerequisites).
 | `gh` | Logged in with read access to every repository of the stack | `pr-monitor.sh` | `gh auth status` |
 | Orca CLI | As `orca` (or `orca-ide`) | both monitors | `orca --version` |
 | `tmux` | Its `new-session` takes `-e` (`man tmux`) | starting the monitors | `tmux -V` |
-| GNU coreutils | `date -d`, `sha1sum` | both monitors | `date -d '-1 day'` |
+| `sha1sum` or `shasum` | Either one; Linux ships `sha1sum`, macOS ships `shasum` | `worker-watch.sh` | `command -v sha1sum shasum` |
 
-On macOS the monitors also need GNU `date`, which macOS does not ship as `date`. No YAML parser is needed: the
-chat that writes the env file reads the config itself.
+The monitors use only POSIX `date` and `jq` for timestamps and date math, so they need no GNU tools on macOS. No
+YAML parser is needed: the chat that writes the env file reads the config itself.
 
 ## Writing the env file
 
