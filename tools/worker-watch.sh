@@ -51,15 +51,19 @@ else
   [ -n "$RUN_ID_FILE" ] || { echo "sending needs RUN_ID_FILE or TECH_LEAD_RUN_ID_FILE" >&2; exit 2; }
 fi
 
+# Timestamps and hashes use only POSIX date and sha1sum or shasum, so the watch runs on Linux and macOS alike.
+stamp() { date +%Y-%m-%dT%H:%M:%S%z; }
+sha1() { if command -v sha1sum >/dev/null; then sha1sum; else shasum -a 1; fi; }
+
 run_id() { [ -n "$RUN_ID_FILE" ] && [ -s "$RUN_ID_FILE" ] && tr -d '[:space:]' <"$RUN_ID_FILE"; }
 send_run() {
   local r s; r="$(run_id)"; s="${1#"[worker watch] "}"
-  if [ -z "$r" ]; then echo "$(date -Is) no run id in $RUN_ID_FILE; not sent" >>"$LOG"; return; fi
+  if [ -z "$r" ]; then echo "$(stamp) no run id in $RUN_ID_FILE; not sent" >>"$LOG"; return; fi
   "$ORCA" orchestration send --to "run:$r" --type status --subject "[Worker watch] ${s:0:80}" --body "$1" >>"$LOG" 2>&1 \
-    || echo "$(date -Is) send to run:$r failed" >>"$LOG"
+    || echo "$(stamp) send to run:$r failed" >>"$LOG"
 }
 
-tick_line() { if [ "$ONCE" = 1 ]; then echo "tick $1"; else echo "$(date -Is) tick $1" >>"$TICKS"; fi; }
+tick_line() { if [ "$ONCE" = 1 ]; then echo "tick $1"; else echo "$(stamp) tick $1" >>"$TICKS"; fi; }
 
 # Writes the worker's newest transcript or terminal rows (its last two pages) to its tail file. It resumes from the
 # cursor of the last page it read, because the cursor after the newest page is refused as invalid.
@@ -83,11 +87,11 @@ read_new() {
 }
 
 notify_once() {
-  local key; key=$(printf '%s' "$1" | sha1sum | cut -c1-16)
+  local key; key=$(printf '%s' "$1" | sha1 | cut -c1-16)
   if [ "$ONCE" = 1 ]; then echo "$2"; return; fi
   grep -q "$key" "$SEEN" && return
   echo "$key" >>"$SEEN"
-  echo "$(date -Is) $2" >>"$LOG"
+  echo "$(stamp) $2" >>"$LOG"
   send_run "$2"
 }
 
