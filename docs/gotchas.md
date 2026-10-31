@@ -208,7 +208,7 @@ Some repositories run their CI only on PRs into their main branch. With the defa
 ## Other providers
 
 Workers on agents other than Claude Code ([providers](./providers.md)). These entries hold on Orca 1.4.245,
-Antigravity `agy` 1.4.2 and OpenCode 2.2.2, checked by running them; re-check them after an upgrade of any of the
+Antigravity `agy` 1.4.2 and OpenCode 2.2.2, hold on those versions; re-check them after an upgrade of any of the
 three.
 
 ### Every worker inherits Orca's environment
@@ -250,7 +250,8 @@ Orca's permission setting for Antigravity defaults to full access: nothing stops
 loose brief the model reads unrelated files and runs exploratory commands such as `env`, `ps` and `find`.
 
 **What to do:** a brief for it lists the exact files and commands allowed and forbids everything else
-([brief template](../agents/templates/brief.md)); it never takes a high-risk unit ([providers](./providers.md#when-the-team-uses-them)).
+([brief template](../agents/templates/brief.md)); it never takes a high-risk unit
+([providers](./providers.md#when-the-team-uses-them)).
 
 ### Orca cannot pass a model to OpenCode v2
 
@@ -279,7 +280,7 @@ agent's `model`.
 ### OpenCode has no model fallback
 
 When a free tier runs out, the session stops with `provider.free-limit` ("Free usage limit reached. ... or switch
-models."). Nothing switches the model, and the worker sends no `worker_done`.
+models."). Nothing switches the model, and the session stops.
 
 **What to do:** the Tech-lead reads the worker with `orca orchestration worker-read --dispatch <dispatch-id>
 --source auto`, switches the `team-worker` model and dispatches again on the same worktree

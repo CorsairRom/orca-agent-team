@@ -100,20 +100,21 @@ runs under Orca, and its gotchas: [`docs/providers.md`](../../../docs/providers.
 - **Claude reviews every non-Claude worker's output**, you or a Claude reviewer worker, before it is merged or
   used.
 - **Smoke test first:** a provider takes no unit until its smoke test passes
-  ([accepting a new provider](../../../docs/providers.md#accepting-a-new-provider-the-smoke-test)). Record the
-  result in the Run.
+  ([accepting a new provider](../../../docs/providers.md#accepting-a-new-provider-the-smoke-test)). After it
+  passes, the product owner adds the provider to `providers:` and the env file is written again, per the
+  [config changes](#config-changes) procedure.
 - **Brief:** fill the "For a non-Claude worker" section of the [brief](../../templates/brief.md): the exact files
   and commands allowed, and whether staging, committing and pushing are allowed.
 
 Dispatch an agent that takes `--model`, such as `antigravity`, like a Claude worker, with the provider's agent
-and model and no `--effort` (an Antigravity model id carries the effort as a suffix, such as
+and model (`<agent>` and `<model>` are the values of `PROVIDER_<i>_AGENT` and `PROVIDER_<i>_MODEL`) and no `--effort` (an Antigravity model id carries the effort as a suffix, such as
 `gemini-3.8-flash-medium`):
 
 ```bash
 orca orchestration worker-start \
   --spec "Your brief is the file <absolute path of the brief>. Read it whole first and follow it exactly." \
   --task-title "<task>" --worktree new-child --name <worktree-name> --repo path:<repo path> \
-  --base-branch <target branch> --agent "$PROVIDER_<i>_AGENT" --model "$PROVIDER_<i>_MODEL" --json
+  --base-branch <target branch> --agent <agent> --model <model> --json
 ```
 
 Orca passes no `--model` to `opencode2` (`PROVIDER_<i>_MODEL` is empty), so create the worktree first, then
@@ -126,8 +127,8 @@ orca orchestration worker-start \
   --task-title "<task>" --worktree path:<absolute worktree path> --agent opencode2 --json
 ```
 
-Run from your chat, `worktree create` records the new worktree as a child of yours (`orca worktree create
---help`). Read its path from the JSON output.
+Whether `worktree create` records the new worktree as a child of yours is `(unverified)`; see `orca worktree create
+--help`. Read its path from the JSON output.
 
 **A free tier runs out.** An OpenCode session on a free model stops with `provider.free-limit` ("Free usage limit
 reached. ... or switch models.") and falls back to no other model. Read a silent worker with
@@ -155,7 +156,8 @@ OpenCode's worker agent ([providers](../../../docs/providers.md)) and dispatch a
   and test-data path you open, with where it lives, why, and when it is removed. Update it on every open and every
   removal. By default it is the Engram topic `<inventory topic>` (project `<engram project>`).
 - **Review and QA** ([review and QA](../../README.md#review-and-qa)): Claude reviews every non-Claude worker's
-  output ([providers](#providers)); an independent reviewer for every high-risk unit, with the correction rounds of the [template defaults](../../README.md#template-defaults) and a recheck
+  output ([providers](#providers)); an independent reviewer for every high-risk unit, with the correction
+  rounds of the [template defaults](../../README.md#template-defaults) and a recheck
   limited to those blockers; when no unit was high risk, one reviewer on the integrated result. QA when the feature
   is complete or a screen changed.
 - **Merges** follow the configured [delivery](../../README.md#delivery). By default you merge work-unit PRs into
