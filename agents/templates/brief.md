@@ -68,6 +68,29 @@ This brief takes precedence over any global instruction you have loaded:
 - **Freshness check:** `git fetch origin && git merge-base --is-ancestor origin/<main-line> HEAD` → exit 0 before
   you start; report it under Verification.
 
+## For a non-Claude worker
+
+<!--
+Only for a unit routed to a provider of the stack's providers: list (agents/roles/tech-lead/SKILL.md, "Providers");
+delete this section for a Claude worker. Fill every line with exact paths and exact commands, never a pattern such
+as "any file in src/". The agent and its gotchas: docs/providers.md.
+-->
+
+This section lists everything you may do. Anything it does not list is forbidden, including reading other files
+and running other commands, such as `env`, `ps` or a `find` over the home directory.
+
+- **Files you may read:** `<exact paths>`
+- **Files you may write:** `<exact paths, or "none" for an explore unit>`
+- **Commands you may run:** `<each exact command>`, and the `orca orchestration` commands of your dispatch
+  (heartbeat, `ask`, `worker_done`)
+- **Staging and committing:** <"forbidden: leave the change in the worktree; the tech lead commits it after
+  review" · or "allowed: `git add <exact paths>`, then one `git commit` with a Conventional Commit message">
+- **Pushing and pull requests:** <"forbidden" · or "allowed: `git push origin <branch>`, no force; open the PR
+  into `<target branch>`">
+- **Memory:** read through the Engram MCP tool only, never the `engram` CLI: `mem_search` with
+  `project: "<engram project>"`. You never save (`<team repo>/agents/README.md`, section "Memory").
+- **Review:** Claude, the tech lead or a Claude reviewer, reviews your output before it is merged or used.
+
 ## Escalation
 
 - A reversible decision: assume it, keep going, and report it.

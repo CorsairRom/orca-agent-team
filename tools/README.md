@@ -4,7 +4,7 @@ Two monitors that run beside the Tech-lead, and the env file they read:
 
 | Piece | What it does | Runs |
 | --- | --- | --- |
-| [The env file](#writing-the-env-file) | `<team dir>/stack.env`, one per [team](#teams): every value of `config/stack.yaml` a bash step needs, as `KEY='value'` lines, plus the conventions file the Tech-lead passes into briefs. The chats and the monitors source it; some keys, such as `MODEL_*`, `LANG_*` and `DELIVERY_*`, only the chats read. A chat writes it from the config; nothing parses the YAML locally | Once at install, and after every config change |
+| [The env file](#writing-the-env-file) | `<team dir>/stack.env`, one per [team](#teams): every value of `config/stack.yaml` a bash step needs, as `KEY='value'` lines, plus the conventions file the Tech-lead passes into briefs. The chats and the monitors source it; some keys, such as `MODEL_*`, `PROVIDER_*`, `LANG_*` and `DELIVERY_*`, only the chats read. A chat writes it from the config; nothing parses the YAML locally | Once at install, and after every config change |
 | [`pr-monitor.sh`](./pr-monitor.sh) | Polls the pull requests of every repository of the stack and sends the Tech-lead one line per change | In tmux, every 300 s by default |
 | [`worker-watch.sh`](./worker-watch.sh) | Reads Orca's observation of every live worker of the Tech-lead's Orca Run and tells the Tech-lead, once per prompt, when a worker waits on a prompt only a human can answer, or cannot be observed | In tmux, every 20 s by default |
 
@@ -64,6 +64,10 @@ the default team ([teams](#teams)).
 | `language.app_copy_rules` | Optional; a list of strings |
 | `models.<role>.model` | Required for each of `ideas`, `tech_lead`, `senior`, `mid`, `junior`; a non-empty string, a Claude Code model id |
 | `models.<role>.effort` | Required for the same five; one of `low`, `medium`, `high`, `xhigh`, `max` |
+| `providers` | Optional; a list of mappings; no two entries with the same `agent`. Absent or `[]` means every worker is Claude |
+| `providers[i].agent` | Required; an Orca agent id matching `[a-z0-9-]+`, not `claude` |
+| `providers[i].model` | Required; a string, possibly empty (`""`) |
+| `providers[i].takes` | Required; a non-empty list, each entry one of `explore`, `docs-draft`, `mechanical` |
 | `orca.chat_ui`, `orca.agent_sleep`, `orca.agent_dashboard` | Optional booleans |
 | `monitors.pr_interval_seconds`, `monitors.watch_interval_seconds` | Optional integers, 1 or more |
 | `monitors.pr_author` | Optional; a non-empty string |
@@ -76,7 +80,7 @@ If there is any problem, write nothing. Tell the human every problem in one mess
 `# Written from <team repo>/config/stack.yaml by a chat; edit the config, not this file.`, then one `KEY='value'`
 line per key, in the order of the table below. Every value is in single quotes; a `'` inside a value is written
 `'\''`. Write every path absolute: `<home>` instead of a leading `~`, both in the derived paths and in `repos[].path`.
-`<i>` counts the repositories from `0`, in config order. An optional key that is missing takes the default shown.
+`<i>` counts the repositories, and the providers, from `0`, in config order. An optional key that is missing takes the default shown.
 Every derived path lies in the team's tree, `TEAM_DIR`, inside the stack's local-share tree
 `<home>/.local/share/<stack.id>/` ([durable folders](../docs/setup-guide.md#durable-folders)). The placeholder each key stands for in the docs, and
 who fills it, is in the [placeholder table](../agents/README.md#placeholders).
@@ -100,6 +104,8 @@ who fills it, is in the [placeholder table](../agents/README.md#placeholders).
 | `LANG_OWNER_CONVERSATION`, `LANG_ARTIFACTS`, `LANG_APP_COPY` | `language.owner_conversation`, `.artifacts`, `.app_copy` |
 | `APP_COPY_RULES` | `language.app_copy_rules`, one rule per line inside the quotes; default empty |
 | `MODEL_<ROLE>`, `EFFORT_<ROLE>` | `models.<role>.model` and `.effort`, for `<ROLE>` `IDEAS`, `TECH_LEAD`, `SENIOR`, `MID`, `JUNIOR` (`models.ideas`, `models.tech_lead`, `models.senior`, `models.mid`, `models.junior`) |
+| `PROVIDER_COUNT` | The number of entries of `providers`; default `0` |
+| `PROVIDER_<i>_AGENT`, `PROVIDER_<i>_MODEL`, `PROVIDER_<i>_TAKES` | `agent`, `model` and `takes` of `providers[<i>]`, for every `<i>` from `0` to `PROVIDER_COUNT - 1`; `takes` space-separated, in config order |
 | `ORCA_CHAT_UI`, `ORCA_AGENT_SLEEP`, `ORCA_AGENT_DASHBOARD` | `orca.chat_ui`, `orca.agent_sleep`, `orca.agent_dashboard`; default `true`, `false`, `true` |
 | `IDEAS_DIR`, `TECH_LEAD_DIR` | `<TEAM_DIR>/ideas`, `<TEAM_DIR>/tech-lead`: the durable folders of Ideas and the Tech-lead |
 | `IDEAS_WORKTREE_NAME`, `TECH_LEAD_WORKTREE_NAME` | `Ideas` and `Tech-lead` for the default team; `Ideas-<team id>` and `Tech-lead-<team id>` for a named team: the names of the two hub worktrees |
@@ -119,14 +125,15 @@ quotes; an empty file when the list is empty or missing. The Tech-lead pastes it
 **4. Read back.** Run, with the path you wrote:
 
 ```bash
-bash -c 'set -eu; . "$1"; for k in STACK_ID TEAM_ID STACK_DIR TEAM_DIR STACK_ENV_FILE BOOTSTRAP_DIR TEAM_REPO HUB_PATH HUB_MAIN_BRANCH HUB_BACKLOG_FILE REPO_COUNT MODEL_IDEAS EFFORT_IDEAS MODEL_TECH_LEAD EFFORT_TECH_LEAD IDEAS_DIR TECH_LEAD_DIR IDEAS_WORKTREE_NAME TECH_LEAD_WORKTREE_NAME IDEAS_RUN_ID_FILE TECH_LEAD_RUN_ID_FILE RUN_ID_FILE CONVENTIONS_FILE MONITOR_DIR TMUX_PREFIX INVENTORY_TOPIC PR_MONITOR_BRANCHES_FILE; do printf "%s=%s\n" "$k" "${!k}"; done
+bash -c 'set -eu; . "$1"; for k in STACK_ID TEAM_ID STACK_DIR TEAM_DIR STACK_ENV_FILE BOOTSTRAP_DIR TEAM_REPO HUB_PATH HUB_MAIN_BRANCH HUB_BACKLOG_FILE REPO_COUNT MODEL_IDEAS EFFORT_IDEAS MODEL_TECH_LEAD EFFORT_TECH_LEAD PROVIDER_COUNT IDEAS_DIR TECH_LEAD_DIR IDEAS_WORKTREE_NAME TECH_LEAD_WORKTREE_NAME IDEAS_RUN_ID_FILE TECH_LEAD_RUN_ID_FILE RUN_ID_FILE CONVENTIONS_FILE MONITOR_DIR TMUX_PREFIX INVENTORY_TOPIC PR_MONITOR_BRANCHES_FILE; do printf "%s=%s\n" "$k" "${!k}"; done
   for ((i = 0; i < REPO_COUNT; i++)); do p="REPO_${i}_PATH"; r="REPO_${i}_REMOTE"; k="REPO_${i}_KIND"; printf "%s %s %s\n" "${!k}" "${!r}" "${!p}"; done
+  for ((i = 0; i < PROVIDER_COUNT; i++)); do a="PROVIDER_${i}_AGENT"; m="PROVIDER_${i}_MODEL"; t="PROVIDER_${i}_TAKES"; printf "provider %s model=%s takes=%s\n" "${!a}" "${!m}" "${!t}"; done
   cat "$CONVENTIONS_FILE"' _ <TEAM_DIR>/stack.env
 ```
 
 **Expected:** the file sources with no error; every value matches `config/stack.yaml` and `<team id>`; every path
 is absolute and lies under `TEAM_DIR`, except `TEAM_REPO`, `HUB_PATH` and the repositories; one line per
-repository; the conventions file holds the `conventions` list. On a mismatch, fix the file and read it
+repository and one per provider; the conventions file holds the `conventions` list. On a mismatch, fix the file and read it
 back again. Then show the human the output.
 
 Edit the configuration, not these two files: they are written again after every config change.
@@ -346,6 +353,8 @@ nothing. A team whose file does not exist sees every PR of the account, as befor
 - **shellcheck** v0.11.0 and `bash -n` on `tools/*.sh`. Run them locally with `shellcheck tools/*.sh`.
 - **Example config**: yq v4.54.1, downloaded on the runner only, checks that `config/stack.example.yaml` parses,
   has exactly one repository of kind `hub`, and has every key the [env file table](#writing-the-env-file) maps.
+  It also checks `providers`: each entry has `agent`, `model` and `takes`, and every `takes` value is one of
+  `explore`, `docs-draft` and `mechanical`.
   Nothing validates a config locally: the chat that writes the env file does.
 - **Monitors**: both print their `--help`.
 - shellcheck and yq are downloaded from their releases and checked against pinned SHA-256 sums; actions are pinned

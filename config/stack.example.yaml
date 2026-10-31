@@ -92,6 +92,27 @@ models:
   mid:       { model: claude-sonnet-5-5, effort: medium }
   junior:    { model: claude-haiku-5-5,  effort: low }
 
+# Optional workers on other Orca agents (docs/providers.md). Absent or [] means Claude only: every worker is
+# Claude, with models.<seniority> above. Each entry needs all three keys.
+#   agent: the Orca agent id passed to worker-start --agent; [a-z0-9-]+, not claude; no two entries share one
+#   model: the model id passed to worker-start --model; "" when Orca cannot pass one to that agent (opencode2),
+#          and the model then comes from the agent's own config
+#   takes: the task kinds this provider may take, a non-empty list of:
+#            explore     read-only exploration and mapping
+#            docs-draft  draft documentation the Tech-lead or a Claude writer finalizes
+#            mechanical  a small, pattern-following code change: rename, lint or format fix, a test that copies
+#                        an existing pattern
+# Fixed rules, not set here: Claude takes every kind and every unit not listed; a unit with a high-risk item never
+# goes to a non-Claude worker; Claude reviews every non-Claude worker's output; a provider is used only after its
+# smoke test passes. The two entries below are an illustrative default; replace them, or write providers: [].
+providers:
+  - agent: antigravity
+    model: gemini-3.8-flash-medium
+    takes: [explore, docs-draft]
+  - agent: opencode2
+    model: ""
+    takes: [mechanical]
+
 # The three Orca settings the setup expects. The human sets them by hand in the Orca settings UI, and the
 # bootstrap asks the human to confirm them; the env file records them for the chats to read.
 orca:

@@ -80,7 +80,60 @@ back to Ideas.
 - Every product worker: `--worktree new-child --base-branch <target branch> --repo path:<repo path>
   --model "$MODEL_<SENIORITY>" --effort "$EFFORT_<SENIORITY>"`, with the repository's `REPO_<i>_PATH` and the
   seniority's keys from the env file (`MODEL_SENIOR`, `MODEL_MID`, `MODEL_JUNIOR` and their `EFFORT_*`), so it nests
-  under you ([running a feature](../../README.md#running-a-feature-in-orca)).
+  under you ([running a feature](../../README.md#running-a-feature-in-orca)). A unit for a non-Claude worker uses
+  the dispatch lines of [Providers](#providers) instead.
+
+## Providers
+
+The config's optional `providers:` list names the other Orca agents the stack may use as workers, and the task
+kinds each one takes. Read it from the env file: `PROVIDER_COUNT`, and per provider `PROVIDER_<i>_AGENT`,
+`PROVIDER_<i>_MODEL` and `PROVIDER_<i>_TAKES`. With `PROVIDER_COUNT` `0`, every worker is Claude. How each agent
+runs under Orca, and its gotchas: [`docs/providers.md`](../../../docs/providers.md).
+
+- **Task kinds:** `explore` (read-only exploration and mapping), `docs-draft` (draft documentation you or a
+  Claude writer finalize), `mechanical` (a small, pattern-following code change: rename, lint or format fix, a test
+  that copies an existing pattern).
+- **Routing:** a unit may go to a provider only when its kind is in that provider's `PROVIDER_<i>_TAKES`. Claude
+  takes every kind, and every unit that fits no kind. Record the route and the kind of each unit in the Run.
+- **Never a high-risk item:** a unit with a high-risk item ([review and QA](../../README.md#review-and-qa)) always
+  goes to Claude, whatever its kind.
+- **Claude reviews every non-Claude worker's output**, you or a Claude reviewer worker, before it is merged or
+  used.
+- **Smoke test first:** a provider takes no unit until its smoke test passes
+  ([accepting a new provider](../../../docs/providers.md#accepting-a-new-provider-the-smoke-test)). Record the
+  result in the Run.
+- **Brief:** fill the "For a non-Claude worker" section of the [brief](../../templates/brief.md): the exact files
+  and commands allowed, and whether staging, committing and pushing are allowed.
+
+Dispatch an agent that takes `--model`, such as `antigravity`, like a Claude worker, with the provider's agent
+and model and no `--effort` (an Antigravity model id carries the effort as a suffix, such as
+`gemini-3.8-flash-medium`):
+
+```bash
+orca orchestration worker-start \
+  --spec "Your brief is the file <absolute path of the brief>. Read it whole first and follow it exactly." \
+  --task-title "<task>" --worktree new-child --name <worktree-name> --repo path:<repo path> \
+  --base-branch <target branch> --agent "$PROVIDER_<i>_AGENT" --model "$PROVIDER_<i>_MODEL" --json
+```
+
+Orca passes no `--model` to `opencode2` (`PROVIDER_<i>_MODEL` is empty), so create the worktree first, then
+dispatch into it; the model comes from OpenCode's worker agent and its most recent model:
+
+```bash
+orca worktree create --repo path:<repo path> --name <worktree-name> --base-branch <target branch> --setup skip --json
+orca orchestration worker-start \
+  --spec "Your brief is the file <absolute path of the brief>. Read it whole first and follow it exactly." \
+  --task-title "<task>" --worktree path:<absolute worktree path> --agent opencode2 --json
+```
+
+Run from your chat, `worktree create` records the new worktree as a child of yours (`orca worktree create
+--help`). Read its path from the JSON output.
+
+**A free tier runs out.** An OpenCode session on a free model stops with `provider.free-limit` ("Free usage limit
+reached. ... or switch models.") and falls back to no other model. Read a silent worker with
+`orca orchestration worker-read --dispatch <dispatch-id> --source auto`. On that error, switch the model of
+OpenCode's worker agent ([providers](../../../docs/providers.md)) and dispatch again on the same
+`--worktree path:<absolute worktree path>`.
 
 ## Run
 
@@ -101,8 +154,8 @@ back to Ideas.
 - **Inventory:** your Run, every worktree, subagent worktree, worker terminal, tmux session, container, database
   and test-data path you open, with where it lives, why, and when it is removed. Update it on every open and every
   removal. By default it is the Engram topic `<inventory topic>` (project `<engram project>`).
-- **Review and QA** ([review and QA](../../README.md#review-and-qa)): an independent reviewer for every high-risk
-  unit, with the correction rounds of the [template defaults](../../README.md#template-defaults) and a recheck
+- **Review and QA** ([review and QA](../../README.md#review-and-qa)): Claude reviews every non-Claude worker's
+  output ([providers](#providers)); an independent reviewer for every high-risk unit, with the correction rounds of the [template defaults](../../README.md#template-defaults) and a recheck
   limited to those blockers; when no unit was high risk, one reviewer on the integrated result. QA when the feature
   is complete or a screen changed.
 - **Merges** follow the configured [delivery](../../README.md#delivery). By default you merge work-unit PRs into
