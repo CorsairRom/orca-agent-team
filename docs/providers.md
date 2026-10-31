@@ -164,9 +164,10 @@ worktree then nests under the Tech-lead's is `(unverified)`.
 ### OpenCode limits
 
 - **No automatic model fallback.** When a free tier runs out, the session stops with `provider.free-limit` ("Free
-  usage limit reached. ... or switch models."), and the session stops there. The Tech-lead sees it with
-  `orca orchestration worker-read --dispatch <dispatch-id> --source auto`, switches the `team-worker` model, and
-  dispatches again on the same worktree.
+  usage limit reached. ... or switch models."), and the session stops there. The [worker
+  watch](../tools/README.md#worker-watchsh-run_id-interval_seconds----once-run_id----help) reports the error to the
+  Tech-lead, which can also see it with `orca orchestration worker-read --dispatch <dispatch-id> --source auto`,
+  switches the `team-worker` model, and dispatches again on the same worktree.
 - The model is the one the agent config and the most recent pick say, never one the Tech-lead passes.
 - `git push` is allowed by the permissions; the prompt and the brief decide whether the worker uses it.
 

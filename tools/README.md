@@ -6,7 +6,7 @@ Two monitors that run beside the Tech-lead, and the env file they read:
 | --- | --- | --- |
 | [The env file](#writing-the-env-file) | `<team dir>/stack.env`, one per [team](#teams): every value of `config/stack.yaml` a bash step needs, as `KEY='value'` lines, plus the conventions file the Tech-lead passes into briefs. The chats and the monitors source it; some keys, such as `MODEL_*`, `PROVIDER_*`, `LANG_*` and `DELIVERY_*`, only the chats read. A chat writes it from the config; nothing parses the YAML locally | Once at install, and after every config change |
 | [`pr-monitor.sh`](./pr-monitor.sh) | Polls the pull requests of every repository of the stack and sends the Tech-lead one line per change | In tmux, every 300 s by default |
-| [`worker-watch.sh`](./worker-watch.sh) | Reads Orca's observation of every live worker of the Tech-lead's Orca Run and tells the Tech-lead, once per prompt, when a worker waits on a prompt only a human can answer, or cannot be observed | In tmux, every 20 s by default |
+| [`worker-watch.sh`](./worker-watch.sh) | Reads Orca's observation of every live worker of the Tech-lead's Orca Run and tells the Tech-lead, once per prompt or error, when a worker waits on a prompt only a human can answer, stopped on a usage-limit error, or cannot be observed | In tmux, every 20 s by default |
 
 The monitors only read GitHub and Orca. They write to their own state directory and send to the mailbox of the
 Tech-lead's Orca Run. They never approve, merge or answer anything. Where they fit in the whole setup: the
@@ -275,6 +275,7 @@ poll with every change: `NEW <repo>#<n> <state> -> <base>`, `state A->B`, `ready
 | second argument | `WATCH_INTERVAL_SECONDS`, `20` | Seconds between ticks |
 | `MONITOR_DIR` | required | Where `worker-watch.seen`, `worker-watch.log` and `worker-watch.ticks` live |
 | `RUN_ID_FILE` | `TECH_LEAD_RUN_ID_FILE` | The file holding the Run id it sends to, and watches when no `<run_id>` is given; required except with `--once <run_id>` |
+| `WATCH_LIMIT_PATTERNS` | none | Newline-separated extended regexes of usage-limit errors, matched case-insensitively and added to the defaults below |
 | `ORCA_BIN` | `orca`, else `orca-ide` | Orca CLI |
 
 Every tick it lists the Run's workers (`orca orchestration worker-list --run <run_id> --json`, status
@@ -292,6 +293,12 @@ is `(unverified)`; the watch passes it on as compact JSON.
   `[worker watch] <dispatch-id> is WAITING on a permission prompt (...): <command>`. Whether a transcript source
   shows permission prompts this way is `(unverified)`. Between ticks it keeps the cursor of the last page it read,
   because the cursor after the newest page is refused as invalid `(unverified)`.
+- Usage limit, on every tick for every live worker, whichever path above ran: it reads the worker's newest two pages
+  with `worker-read --source auto` and looks for a line matching a default or a `WATCH_LIMIT_PATTERNS` pattern. It
+  notifies once per worker and line with `[worker watch] <dispatch-id> stopped on a usage limit: <the matched line,
+  200 characters at most>`, and ticks `limit-HIT`. It reports the error and changes nothing; the Tech-lead
+  re-dispatches the unit on another provider ([providers](../docs/providers.md)). A line that only quotes a pattern,
+  such as a transcript of a worker editing this script, also matches.
 - Neither works: it never skips the worker silently. It ticks `unobservable` and notifies once per dispatch with
   `[worker watch] <dispatch-id> cannot be observed ...` and the `worker-read` line to read it by hand.
 
@@ -299,6 +306,18 @@ The watch only sees workers that are alive at a tick, and that is enough: a work
 so a later tick always sees it. A worker that starts and finishes between two ticks is never ticked, and needs no
 watch. On the minimum Orca version, `worker-show` gives no `agentWait` field for a running worker, so the
 `worker-read` fallback is the path that runs; whether `agentWait` appears for a parked worker is `(unverified)`.
+
+Default usage-limit patterns, extended regexes, matched case-insensitively:
+
+| Pattern | Source |
+| --- | --- |
+| `provider\.free-limit` | OpenCode 2.2.2, free model out of quota |
+| `Free usage limit reached` | OpenCode 2.2.2, free model out of quota |
+| `usage limit reached` | OpenCode 2.2.2 (OpenCode Go) |
+| `hit your (usage )?limit` | Claude Code `(unverified)` |
+| `RESOURCE_EXHAUSTED`, `Quota exceeded` | Gemini quota errors `(unverified)` |
+
+Set `WATCH_LIMIT_PATTERNS` in the env file as a multi-line value, one regex per line; blank lines are ignored.
 
 The Tech-lead then reports the prompt and its safety read to Ideas; the human decides.
 
@@ -311,7 +330,7 @@ All in `MONITOR_DIR`, `<team dir>/monitors`, outside every repository:
 | `state.json` | PR monitor | The last snapshot, the base of the next diff |
 | `monitor.log` | PR monitor | Every change sent, every failed snapshot, the output of each send |
 | `pending.txt` | PR monitor | Lines not delivered yet; emptied after a delayed send succeeds |
-| `worker-watch.ticks` | worker watch | One line per worker per tick: `no-wait` or `wait-PENDING` from `agentWait`; `no-allow`, `allow-resolved` or `allow-PENDING` from the fallback; `unobservable`; `no-run-id` for a tick with no Run to watch; trimmed to 2000 lines |
+| `worker-watch.ticks` | worker watch | One line per worker per tick: `no-wait` or `wait-PENDING` from `agentWait`; `no-allow`, `allow-resolved` or `allow-PENDING` from the fallback; `limit-HIT` for a worker whose rows match a usage-limit pattern, besides one of the others; `unobservable`; `no-run-id` for a tick with no Run to watch; trimmed to 2000 lines |
 | `worker-watch.cursor.<dispatch-id>`, `worker-watch.tail.<dispatch-id>` | worker watch | The fallback's last cursor and newest rows of one worker |
 | `worker-watch.log` | worker watch | Every notification and the output of each send, including a failed or skipped send |
 | `worker-watch.seen` | worker watch | Keys of prompts already notified |

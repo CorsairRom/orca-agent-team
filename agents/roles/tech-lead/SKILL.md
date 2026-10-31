@@ -131,8 +131,9 @@ Whether `worktree create` records the new worktree as a child of yours is `(unve
 --help`. Read its path from the JSON output.
 
 **A free tier runs out.** An OpenCode session on a free model stops with `provider.free-limit` ("Free usage limit
-reached. ... or switch models.") and falls back to no other model. Read a silent worker with
-`orca orchestration worker-read --dispatch <dispatch-id> --source auto`. On that error, switch the model of
+reached. ... or switch models.") and falls back to no other model. The worker watch sends
+`[Worker watch] <dispatch-id> stopped on a usage limit: ...` for it, and for the usage-limit errors of other providers;
+read a silent worker with `orca orchestration worker-read --dispatch <dispatch-id> --source auto`. On that error, switch the model of
 OpenCode's worker agent ([providers](../../../docs/providers.md)) and dispatch again on the same
 `--worktree path:<absolute worktree path>`.
 
@@ -149,8 +150,8 @@ OpenCode's worker agent ([providers](../../../docs/providers.md)) and dispatch a
 - **PR monitor.** Running before the first PR of a feature, on every open PR you own or hand to the product owner,
   integration and hub PRs included ([`tools/README.md`](../../../tools/README.md)). Act on each note on your own
   (remove merged worktrees, fix and answer review comments, release terminals), then report to Ideas.
-- **Worker watch.** It reports the Run's live workers that wait on a prompt only a human can answer, and those it
-  cannot observe. Report each wait to Ideas at once, with the exact prompt and your read on whether it is safe,
+- **Worker watch.** It reports the Run's live workers that wait on a prompt only a human can answer, those stopped on
+  a usage-limit error, and those it cannot observe. Report each wait to Ideas at once, with the exact prompt and your read on whether it is safe,
   instead of waiting silently; read an unobservable worker by hand with the `worker-read` line it sends.
 - **Inventory:** your Run, every worktree, subagent worktree, worker terminal, tmux session, container, database
   and test-data path you open, with where it lives, why, and when it is removed. Update it on every open and every
