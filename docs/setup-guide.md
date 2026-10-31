@@ -16,6 +16,7 @@ The rules themselves live in the documents below, and those win where they say m
 | [`tools/README.md`](../tools/README.md) | The env file, the PR monitor and the permission watch |
 | [`docs/delivery-model.md`](./delivery-model.md) | The default workflow: integration branches, work-unit PRs, who merges |
 | [`docs/gotchas.md`](./gotchas.md) | Known gotchas |
+| [`docs/providers.md`](./providers.md) | Optional workers on other agents, such as Antigravity or OpenCode v2 |
 | [`docs/reboot.md`](./reboot.md) | Reboot and reopen |
 
 Ideas and the Tech-lead are Claude Code sessions in Orca chats (Chat UI on), each the top-level coordinator of its
@@ -131,6 +132,20 @@ The export holds the memory content: carry it out of band, and never commit it o
 worktree or `/tmp`. **Without a transfer, the new machine starts with empty memory**, which is a working state: the
 hub repository is the source of truth for rules and decisions, and Engram only adds history. Run ids are never read
 from Engram: each coordinator keeps its own in its run-id file.
+
+### Credentials
+
+Every worker inherits the environment Orca was started with, and an agent that runs `env` sends what it prints to
+its model provider ([gotchas](./gotchas.md#every-worker-inherits-orcas-environment)). So no credential lives in the
+global environment:
+
+- **No global exports.** A shell profile does not export a `GITHUB_TOKEN`, a `<PROVIDER>_API_KEY` or any other
+  secret.
+- **Each tool's own auth store.** `gh auth login`, Claude Code's login and each agent's own sign-in keep their
+  credentials where only that tool reads them.
+- **A file the config references.** A config that needs a key points to a file instead of holding the value, such
+  as OpenCode's `{file:~/.secrets/<provider>-key}`. The file is `chmod 600`, outside every repository.
+- **A secret store**, such as the OS keychain, for anything a tool reads at run time.
 
 ## Building the tree
 
@@ -263,6 +278,12 @@ orca orchestration worker-start \
 - To reuse a worktree for a correction or a follow-up after `worker_done`: `--worktree path:<absolute path>` with no
   `--name`, `--repo` or `--base-branch`.
 - A worker keeps its scratch files outside every repository, and deletes them after use.
+
+### Other providers (optional)
+
+Every worker is Claude unless the config's optional `providers:` section lists another agent, such as Antigravity
+or OpenCode v2, for some task kinds. Each one needs its own setup, HUMAN steps included, and a passed smoke test
+before its first unit: [providers](./providers.md). Skip this step for a Claude-only team.
 
 ### The monitors
 
