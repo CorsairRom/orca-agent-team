@@ -103,6 +103,13 @@ human**, one question at a time:
    Propose `en` for all three.
 4. **Models**: propose the example's model and effort per role and seniority, and ask whether to change any.
 
+**Then the team.** One stack can run several teams ([teams](./tools/README.md#teams)). Read, with the file tool,
+`~/.local/share/<stack.id>/tech-lead/run-id.txt`. When it is missing or empty, propose the default team, an empty
+`<team id>`, unless the install prompt names a team. When it holds a Run id, the default team is installed: **ask
+the human** for the new team's id (lowercase letters, digits and hyphens, such as `billing`) and never install a
+second default team. Refuse an id whose `~/.local/share/<stack.id>/teams/<team id>/tech-lead/run-id.txt` is not
+empty: that team exists, and its chats are resumed ([`docs/reboot.md`](./docs/reboot.md)), not installed again.
+
 Every other key keeps the example's value: `memory.engram_project` is the hub's `name`, `memory.topic_prefix` is the
 stack id, and `hub`, `delivery`, `conventions` (empty), `orca` and `monitors` stay as in the example. Write the
 result to `<team repo>/config/stack.yaml` with the editor tool, show the whole file to the human, and ask them to
@@ -110,22 +117,22 @@ confirm it. Change what they ask, then go on.
 
 ## Step 3. Write the env file
 
-Write the env file and the conventions file from `config/stack.yaml` by following
+Write the env file and the conventions file from `config/stack.yaml` and `<team id>` by following
 [Writing the env file](./tools/README.md#writing-the-env-file) in `tools/README.md`, all four of its steps. It
 validates the config first: when it finds a problem, tell the human every problem, fix them in `config/stack.yaml`
 with the human, and run this step again.
 
-**Expected:** its read-back shows `HUB_PATH` as an absolute path, `REPO_COUNT` equal to the number of repositories,
+**Expected:** its read-back shows `TEAM_ID` and `TEAM_DIR` for the chosen team, `HUB_PATH` as an absolute path, `REPO_COUNT` equal to the number of repositories,
 the model and effort of Ideas and the Tech-lead, and one line per repository.
 
 Shell variables do not survive between Bash calls, so every later bash block starts by sourcing the env file:
-`. ~/.local/share/<stack.id>/stack.env`, with `<stack.id>` filled in.
+`. <env file>`, with `<env file>` the absolute `STACK_ENV_FILE` the read-back printed.
 
 ## Step 4. Check the clones and register the repositories in Orca
 
 ```bash
 bash -c '
-. ~/.local/share/<stack.id>/stack.env
+. <env file>
 cd "$TEAM_REPO"
 for ((i = 0; i < REPO_COUNT; i++)); do r="REPO_${i}_REMOTE"; gh repo view "${!r}" --json nameWithOwner -q .nameWithOwner; done
 for ((i = 0; i < REPO_COUNT; i++)); do p="REPO_${i}_PATH"; git -C "${!p}" rev-parse --abbrev-ref HEAD || echo "MISSING ${!p}"; done
@@ -140,7 +147,7 @@ Register every repository that Orca does not list yet:
 
 ```bash
 bash -c '
-. ~/.local/share/<stack.id>/stack.env
+. <env file>
 cd "$TEAM_REPO"
 for ((i = 0; i < REPO_COUNT; i++)); do p="REPO_${i}_PATH"
   orca repo list --json | jq -e --arg p "${!p}" "any(.. | objects; .path? == \$p)" >/dev/null || orca repo add --path "${!p}" --json >/dev/null
@@ -152,7 +159,7 @@ Then read the registration back:
 
 ```bash
 bash -c '
-. ~/.local/share/<stack.id>/stack.env
+. <env file>
 cd "$TEAM_REPO"
 list=$(orca repo list --json)
 for ((i = 0; i < REPO_COUNT; i++)); do p="REPO_${i}_PATH"; n="REPO_${i}_NAME"
@@ -174,7 +181,7 @@ explicitly ([memory](./agents/README.md#memory)). So you create it once, with on
 some:
 
 ```bash
-. ~/.local/share/<stack.id>/stack.env
+. <env file>
 cd "$TEAM_REPO"
 mkdir -p "$IDEAS_DIR/briefs" "$TECH_LEAD_DIR/briefs" "$TECH_LEAD_DIR/reports" "$TECH_LEAD_DIR/pr-bodies" "$BOOTSTRAP_DIR"
 engram projects list | awk -v p="$ENGRAM_PROJECT" '$1 == p && $2 > 0' | grep -q . || engram save "$STACK_NAME agent team installed" "The installing chat created this project for the $STACK_NAME agent team." --type config --project "$ENGRAM_PROJECT"
@@ -186,41 +193,42 @@ engram projects list | awk -v p="$ENGRAM_PROJECT" '$1 == p'
 List the hub's worktrees first:
 
 ```bash
-. ~/.local/share/<stack.id>/stack.env
+. <env file>
 cd "$TEAM_REPO"
 orca worktree list --repo path:"$HUB_PATH" --json
 ```
 
-If the list shows a worktree named Ideas, keep its path as `<ideas worktree>` and skip the next block; otherwise
+If the list shows a worktree named `$IDEAS_WORKTREE_NAME`, keep its path as `<ideas worktree>` and skip the next block; otherwise
 create it:
 
 ```bash
-. ~/.local/share/<stack.id>/stack.env
+. <env file>
 cd "$TEAM_REPO"
-orca worktree create --repo path:"$HUB_PATH" --name Ideas --base-branch "$HUB_MAIN_BRANCH" --no-parent --json
+orca worktree create --repo path:"$HUB_PATH" --name "$IDEAS_WORKTREE_NAME" --base-branch "$HUB_MAIN_BRANCH" --no-parent --json
 ```
 
 Orca chooses where a worktree lives, which need not be next to the hub clone: read the worktree's absolute path
 from the output, never assume it, and keep it as `<ideas worktree>`. The same for the Tech-lead: if the list
-showed a worktree named Tech-lead, keep its path as `<tech-lead worktree>` and skip the next block; otherwise:
+showed a worktree named `$TECH_LEAD_WORKTREE_NAME`, keep its path as `<tech-lead worktree>` and skip the next block; otherwise:
 
 ```bash
-. ~/.local/share/<stack.id>/stack.env
+. <env file>
 cd "$TEAM_REPO"
-orca worktree create --repo path:"$HUB_PATH" --name Tech-lead --parent-worktree path:<ideas worktree> --base-branch "$HUB_MAIN_BRANCH" --json
+orca worktree create --repo path:"$HUB_PATH" --name "$TECH_LEAD_WORKTREE_NAME" --parent-worktree path:<ideas worktree> --base-branch "$HUB_MAIN_BRANCH" --json
 orca worktree list --repo path:"$HUB_PATH" --json
 ```
 
 Keep the Tech-lead's path as `<tech-lead worktree>`, and write both down for later steps:
 
 ```bash
-. ~/.local/share/<stack.id>/stack.env
+. <env file>
 cd "$TEAM_REPO"
 printf '%s\n' '<ideas worktree>' > "$BOOTSTRAP_DIR/ideas-path.txt"
 printf '%s\n' '<tech-lead worktree>' > "$BOOTSTRAP_DIR/tech-lead-path.txt"
 ```
 
-**Expected:** two worktrees in the hub, Ideas top-level (`--no-parent`) and Tech-lead with Ideas as its parent.
+**Expected:** two worktrees of this team in the hub, `$IDEAS_WORKTREE_NAME` top-level (`--no-parent`) and
+`$TECH_LEAD_WORKTREE_NAME` with it as its parent. Another team's worktrees may also be listed; leave them alone.
 `--no-parent` matters: without it, Orca uses the parent it infers from the current context
 (`orca worktree create --help`). The field that holds the path in the JSON is `(unverified)`; read it from the
 output.
@@ -231,15 +239,16 @@ A Run is bound to the session that created it, so you do not create their Runs: 
 first turn, from its after-start checklist ([gotchas](./docs/gotchas.md#a-run-is-bound-to-the-session-that-created-it)).
 
 Write five files with the editor tool (long text inside shell commands breaks on quoting, and auto-mode permission
-checks may block command substitutions), with every value filled in (`<stack.id>`, `<stack.name>` and the absolute
-`<team repo>`):
+checks may block command substitutions), with every value filled in (`<stack.id>`, `<stack.name>`, the absolute
+`<team repo>` and the absolute `<env file>`):
 
 - `<bootstrap dir>/ideas-first.md`, the first prompt of Ideas:
 
   ```text
   You are Ideas, the analyst chat of the <stack.name> agent team. Your role card is
   <team repo>/agents/roles/ideas/SKILL.md. Read <team repo>/agents/templates/after-start-ideas.md whole and run it
-  now as a FIRST START. The stack id is <stack.id>; the team repository is <team repo>.
+  now as a FIRST START. The stack id is <stack.id>; the team repository is <team repo>; your env file is
+  <env file>.
   ```
 
 - `<bootstrap dir>/tech-lead-first.md`, the same with `You are the Tech-lead, the coordinator chat`,
@@ -250,7 +259,7 @@ checks may block command substitutions), with every value filled in (`<stack.id>
 Launch Ideas, and wait for its run-id file:
 
 ```bash
-. ~/.local/share/<stack.id>/stack.env
+. <env file>
 cd "$TEAM_REPO"
 orca agent launch --agent claude --surface chat --worktree path:"$(cat "$BOOTSTRAP_DIR/ideas-path.txt")" \
   --model "$MODEL_IDEAS" --effort "$EFFORT_IDEAS" \
@@ -261,7 +270,7 @@ for i in $(seq 1 50); do test -s "$IDEAS_RUN_ID_FILE" && break; sleep 10; done; 
 Then the Tech-lead, and wait for its run-id file and for the handshake confirmation:
 
 ```bash
-. ~/.local/share/<stack.id>/stack.env
+. <env file>
 cd "$TEAM_REPO"
 orca agent launch --agent claude --surface chat --worktree path:"$(cat "$BOOTSTRAP_DIR/tech-lead-path.txt")" \
   --model "$MODEL_TECH_LEAD" --effort "$EFFORT_TECH_LEAD" \
@@ -287,14 +296,14 @@ If a launch reports a terminal instead of a chat, stop: the team needs chats; te
 
 ## Step 7. Check the monitors
 
-The PR monitor and the permission watch run in the tmux sessions `<stack.id>-pr-monitor` and
-`<stack.id>-worker-watch`, and post to the Tech-lead's Run mailbox. The Tech-lead started them in its first turn
+The PR monitor and the permission watch run in the tmux sessions `<tmux prefix>-pr-monitor` and
+`<tmux prefix>-worker-watch`, and post to the Tech-lead's Run mailbox. The Tech-lead started them in its first turn
 (its checklist step 4), not you: a monitor sends under the Orca identity of the chat that started it, and you are
 closed after the install ([gotchas](./docs/gotchas.md#a-tmux-session-sends-under-the-identity-it-was-started-with)).
 You only check them:
 
 ```bash
-. ~/.local/share/<stack.id>/stack.env
+. <env file>
 cd "$TEAM_REPO"
 tmux ls
 tail -n 1 "$MONITOR_DIR/monitor.log"
@@ -319,7 +328,7 @@ the token, only the token, to <ideas dir>/roundtrip-ok.txt.
 ```
 
 ```bash
-. ~/.local/share/<stack.id>/stack.env
+. <env file>
 cd "$TEAM_REPO"
 : > "$IDEAS_DIR/roundtrip-ok.txt"
 orca orchestration send --to "run:$(cat "$IDEAS_RUN_ID_FILE")" --type status --subject "[Bootstrap] mailbox round trip" --body "$(cat "$BOOTSTRAP_DIR/roundtrip.md")" --json
@@ -340,7 +349,7 @@ shows.
 
 Report to the human:
 
-- the path of `config/stack.yaml`, the two worktree paths, the two Run ids, and the two monitor sessions;
+- the path of `config/stack.yaml`, the team id (or "default") and its env file, the two worktree paths, the two Run ids, and the two monitor sessions;
 - the handshake and the round-trip token, and whether each came back;
 - every step that failed or needed a HUMAN action, and every `(unverified)` line whose output differed from
   **Expected**.

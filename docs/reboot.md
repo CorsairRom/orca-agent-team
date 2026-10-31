@@ -6,7 +6,9 @@ the [Tech-lead's](../agents/templates/after-start-tech-lead.md). The prompts tha
 installing chat to `<ideas dir>/resume-prompt.txt` and `<tech-lead dir>/resume-prompt.txt`
 ([placeholders](../agents/README.md#placeholders)).
 
-Examples use the "acme" stack: `~/.local/share/acme/ideas/` and `~/.local/share/acme/tech-lead/`.
+Examples use the "acme" stack's default team: `~/.local/share/acme/ideas/` and `~/.local/share/acme/tech-lead/`.
+With several [teams](../tools/README.md#teams), run the procedure once per team, with that team's folders under
+`~/.local/share/acme/teams/<team id>/` and its worktrees `Ideas-<team id>` and `Tech-lead-<team id>`.
 
 ## What to do
 
@@ -64,7 +66,7 @@ Steps marked **HUMAN** need the human in the Orca UI.
 
 ### Reconcile what is alive
 
-The Tech-lead compares its inventory (by default the Engram topic `<prefix>/agents/tech-lead-inventory`, where it
+The Tech-lead compares its inventory (by default the Engram topic `<inventory topic>`, where it
 records every worktree, worker, tmux session and path it opens) with what is running:
 
 ```bash

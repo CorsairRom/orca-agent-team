@@ -158,7 +158,7 @@ that quotes a command runs it, or arrives mangled.
 A file under `/tmp` is gone after a reboot; a worker whose brief was there receives only its bare path as a spec.
 
 **What to do:** briefs, messages, reports and PR bodies live in the durable folders under
-`~/.local/share/<stack.id>/ideas/` and `~/.local/share/<stack.id>/tech-lead/`.
+`<ideas dir>` and `<tech-lead dir>`, under `~/.local/share/<stack.id>/`.
 
 ### A worker that ends between two ticks is not watched
 

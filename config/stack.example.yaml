@@ -1,8 +1,8 @@
 # Stack configuration for orca-agent-team.
 #
 # Copy this file to config/stack.yaml and edit it for your stack. No YAML parser reads it locally: a chat
-# validates it and writes a shell-sourceable env file, ~/.local/share/<stack.id>/stack.env, that the bootstrap,
-# the checklists and the monitors in tools/ read (tools/README.md, "Writing the env file").
+# validates it and writes a shell-sourceable env file per team, ~/.local/share/<stack.id>/stack.env for the default
+# one, that the bootstrap, the checklists and the monitors in tools/ read (tools/README.md, "Writing the env file").
 #
 # This example describes a fictional stack named "acme": one hub repository, one frontend and one backend.
 # Every value below is an example. Replace it with your own.

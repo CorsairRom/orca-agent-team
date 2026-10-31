@@ -139,7 +139,7 @@ from Engram: each coordinator keeps its own in its run-id file.
 `config/stack.yaml` describes the stack ([README, Configuring the stack](../README.md#configuring-the-stack)). When
 it is missing, the installing chat builds it with the human from
 [`config/stack.example.yaml`](../config/stack.example.yaml), one question at a time. Then it reads the config
-itself, with no YAML parser, validates it and writes `~/.local/share/<stack.id>/stack.env`, with every value a
+itself, with no YAML parser, validates it and writes `<team dir>/stack.env`, with every value a
 bash step needs: the hub path and main branch, every repository, the two run-id file paths, the durable folders,
 the monitor settings and the model and effort per role
 ([Writing the env file](../tools/README.md#writing-the-env-file)). The monitors, the bootstrap and both
@@ -149,7 +149,8 @@ after-start checklists source it; no bash step reads the YAML.
 
 Briefs, messages and reports never live under `/tmp`: a reboot clears it, and a worker whose brief is gone receives
 only the bare path as its spec. Everything local to the team lives in one tree, with the env-file key of each
-folder:
+folder. The default team's tree is the stack's own; a named team's is `teams/<team id>/` inside it, with the same
+layout ([several teams](#several-teams-on-one-stack)):
 
 ```
 ~/.local/share/<stack.id>/    STACK_DIR
@@ -158,7 +159,8 @@ folder:
 ├── tech-lead/                TECH_LEAD_DIR: run-id.txt, resume-prompt.txt, handshake-ok.txt, conventions.txt,
 │                             briefs/, reports/, pr-bodies/
 ├── monitors/                 MONITOR_DIR: state and logs of both monitors
-└── bootstrap/                BOOTSTRAP_DIR: the installing chat's files
+├── bootstrap/                BOOTSTRAP_DIR: the installing chat's files
+└── teams/<team id>/          TEAM_DIR of a named team: its own stack.env, ideas/, tech-lead/, monitors/, bootstrap/
 ```
 
 The installing chat creates the folders in
@@ -174,9 +176,10 @@ the monitors create `monitors/` themselves.
 | `<tech-lead dir>/briefs/` | Tech-lead | One brief per worker and the messages it sends to Ideas |
 | `<tech-lead dir>/reports/` | Tech-lead | Reports it keeps |
 | `<tech-lead dir>/pr-bodies/` | Tech-lead | PR bodies passed to `gh pr create --body-file` |
-| `~/.local/share/<stack.id>/stack.env`, `<tech-lead dir>/conventions.txt` | the chat that writes the env file | The env file and the conventions file ([Writing the env file](../tools/README.md#writing-the-env-file)) |
-| `~/.local/share/<stack.id>/monitors/` | the monitors | Their state and logs ([`tools/README.md`](../tools/README.md#logs-and-state)) |
-| `~/.local/share/<stack.id>/bootstrap/` | the installing chat | Its prompts and the worktree paths; it holds no secret |
+| `<tech-lead dir>/branches.txt` | Tech-lead | The team's integration branches, when the PR monitor filters by team ([teams](../tools/README.md#teams)) |
+| `<team dir>/stack.env`, `<tech-lead dir>/conventions.txt` | the chat that writes the env file | The env file and the conventions file ([Writing the env file](../tools/README.md#writing-the-env-file)) |
+| `<team dir>/monitors/` | the monitors | Their state and logs ([`tools/README.md`](../tools/README.md#logs-and-state)) |
+| `<team dir>/bootstrap/` | the installing chat | Its prompts and the worktree paths; it holds no secret |
 
 ### Register the repositories
 
@@ -196,12 +199,13 @@ The Ideas worktree is top-level. `--no-parent` matters: run from inside an Orca 
 uses the parent it infers from the current context (`orca worktree create --help`).
 
 ```bash
-orca worktree create --repo path:<hub path> --name Ideas --base-branch <hub main branch> --no-parent --json
-orca worktree create --repo path:<hub path> --name Tech-lead --parent-worktree path:<ideas worktree> --base-branch <hub main branch> --json
+orca worktree create --repo path:<hub path> --name <ideas worktree name> --base-branch <hub main branch> --no-parent --json
+orca worktree create --repo path:<hub path> --name <tech-lead worktree name> --parent-worktree path:<ideas worktree> --base-branch <hub main branch> --json
 orca worktree list --repo path:<hub path> --json
 ```
 
-Expected: "Tech-lead" lists "Ideas" as its parent. Orca chooses where a worktree lives, which need not be next to
+Expected: the Tech-lead's worktree lists the Ideas worktree as its parent. The default team's are named "Ideas"
+and "Tech-lead"; a named team's carry its id, such as "Ideas-billing". Orca chooses where a worktree lives, which need not be next to
 the hub clone: read each absolute path from the `--json` output instead of assuming it.
 
 ### The two chats and their Runs
@@ -273,8 +277,31 @@ Both send to the Tech-lead's Run, reading its id from the run-id file on every s
 The Tech-lead starts them from its own chat, on its first start and on every resume, so they send under its Orca
 identity ([gotchas](./gotchas.md#a-tmux-session-sends-under-the-identity-it-was-started-with)); the installing chat
 only checks them. Install, start, stop and log
-locations are in [`tools/README.md`](../tools/README.md). Expected: `tmux ls` lists `<stack.id>-pr-monitor` and
-`<stack.id>-worker-watch`, and an alive check arrives in the Tech-lead's mailbox.
+locations are in [`tools/README.md`](../tools/README.md). Expected: `tmux ls` lists `<tmux prefix>-pr-monitor` and
+`<tmux prefix>-worker-watch`, and an alive check arrives in the Tech-lead's mailbox.
+
+### Several teams on one stack
+
+Each team is a pair of chats, Ideas and a Tech-lead, with its own Runs, monitors, durable folders and backlog, so two
+large features that differ do not share one product-owner queue or one Tech-lead context. A team is installed with
+the [bootstrap](../BOOTSTRAP_PROMPT.md#step-2-the-config), which asks for its `<team id>`; the first team is the
+default one, with an empty id.
+
+| Per team | Shared by every team of the stack |
+| --- | --- |
+| `TEAM_DIR` and everything in it: env file, run-id files, briefs, reports, monitor state | `config/stack.yaml`, models, conventions, languages |
+| The two hub worktrees, `Ideas-<team id>` and `Tech-lead-<team id>` | The hub repository, its PRD and decision folders |
+| The Runs, the workers and their worktrees | The repositories of the stack and their clones |
+| The monitor sessions `<stack.id>-<team id>-*` and the PR branches file | The `gh` account the PR monitor polls with |
+| The backlog file, `BACKLOG-<team id>.md` by default, and the inventory topic | The Engram project and every role lesson |
+
+- **Two teams never work on the same feature.** A feature belongs to the team whose Ideas wrote its PRD. When two
+  features touch the same repository, each team's Tech-lead works on its own integration branch; a change one team
+  needs from the other goes to the product owner, who carries it between the two Ideas chats.
+- **Local resources are not split.** Worktrees isolate files, not ports, databases or containers. Each Tech-lead
+  records what it starts in its inventory; before starting a service, check that the port is free.
+- **The PR monitor filters by branch.** Every team's monitor polls the same `gh` account, so a team that is not
+  alone keeps its branches file ([teams](../tools/README.md#teams)).
 
 ## The mailbox protocol
 
@@ -343,7 +370,7 @@ The rules are in the [Tech-lead card](../agents/roles/tech-lead/SKILL.md) and
 - **Monitors.** On a merge, a review or a comment, the Tech-lead acts on its own: fixes review comments in a unit PR,
   replies to every comment, removes merged worktrees, and reports to Ideas. Each pending permission prompt is
   reported to Ideas at once, with the exact command and its read on whether it is safe.
-- **Inventory** in Engram (by default the topic `<prefix>/agents/tech-lead-inventory`): its standing Run (id and
+- **Inventory** in Engram (by default the topic `<inventory topic>`): its standing Run (id and
   objective), and every worktree, worker, tmux session and path it opens, with where it lives, why, and when it is
   removed. Each worktree is removed when its PR merges.
 - **Conventions.** Every brief carries the config's `conventions:` list; a new project starts with none.
@@ -388,3 +415,7 @@ With the example stack `acme`. Steps marked **HUMAN** need the human in the Orca
    projects named after worktrees may also exist ([gotchas](./gotchas.md#engram-may-create-small-projects-named-after-worktrees)).
 6. **HUMAN:** remove each repository from Orca's sidebar, because the minimum Orca version has no CLI command for it.
 7. Runs cannot be deleted; the old ones stay in `orca orchestration run-list`.
+
+To remove one named team only, follow steps 1 to 4 with that team's sessions (`acme-<team id>-pr-monitor` and
+`acme-<team id>-worker-watch`), chats and worktrees, and remove `~/.local/share/acme/teams/<team id>/` instead of the
+whole tree. The other teams, the config, the memory and the repositories stay.

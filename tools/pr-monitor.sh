@@ -9,13 +9,14 @@
 #   PR_MONITOR_REPOS        space-separated owner/repo list it polls [required]
 #   PR_MONITOR_AUTHOR       gh pr list --author filter [@me]
 #   PR_MONITOR_MERGED_DAYS  merged PRs stay in the snapshot for this many days [2]
+#   PR_MONITOR_BRANCHES_FILE  when the file exists, keep only PRs whose base or head branch is one of its lines [none]
 #   MONITOR_DIR             directory of state.json, monitor.log and pending.txt [required]
 #   RUN_ID_FILE             file holding the Tech-lead's Run id, read on every send [TECH_LEAD_RUN_ID_FILE]
 #   PR_INTERVAL_SECONDS     seconds between polls when no interval argument is given [300]
 #   ORCA_BIN                Orca CLI [orca, else orca-ide]
 set -uo pipefail
 
-usage() { sed -n '2,15p' "$0" | sed 's/^# \{0,1\}//'; }
+usage() { sed -n '2,16p' "$0" | sed 's/^# \{0,1\}//'; }
 
 load_env_file() {
   local f="$1" line key
@@ -42,6 +43,7 @@ LOG="$DIR/monitor.log"
 read -r -a REPOS <<<"${PR_MONITOR_REPOS:-}"
 AUTHOR="${PR_MONITOR_AUTHOR:-@me}"
 MERGED_DAYS="${PR_MONITOR_MERGED_DAYS:-2}"
+BRANCHES_FILE="${PR_MONITOR_BRANCHES_FILE:-}"
 ORCA="${ORCA_BIN:-$(command -v orca || command -v orca-ide || echo orca)}"
 RUN_ID_FILE="${RUN_ID_FILE:-${TECH_LEAD_RUN_ID_FILE:-}}"
 [ "${#REPOS[@]}" -gt 0 ] || { echo "PR_MONITOR_REPOS is empty: set it in $STACK_ENV_FILE" >&2; exit 2; }
@@ -51,15 +53,25 @@ mkdir -p "$DIR"
 # Log timestamps and date math use only POSIX date and jq, so the monitor runs on Linux and macOS alike.
 stamp() { date +%Y-%m-%dT%H:%M:%S%z; }
 
+# The team's branches as a JSON array, or null when no branches file exists: then every PR is kept.
+branches() {
+  if [ -n "$BRANCHES_FILE" ] && [ -f "$BRANCHES_FILE" ]; then
+    jq -R -s 'split("\n") | map(gsub("^\\s+|\\s+$"; "")) | map(select(length > 0))' "$BRANCHES_FILE"
+  else
+    echo null
+  fi
+}
+
 snapshot() {
-  local since
+  local b since
+  b="$(branches)" || return 1
   since="$(jq -rn --argjson d "$MERGED_DAYS" 'now - $d * 86400 | strftime("%Y-%m-%dT%H:%M:%SZ")')" || return 1
   for r in "${REPOS[@]}"; do
     gh pr list -R "$r" --author "$AUTHOR" --state all --limit 40 \
-      --json number,state,isDraft,mergedAt,reviewDecision,title,url,comments,reviews,baseRefName \
-      --jq ".[] | select(.state==\"OPEN\" or ((.mergedAt // \"\") > \"$since\")) | {key: \"$r#\(.number)\", url, title: .title[0:60], base: .baseRefName, state, draft: .isDraft, decision: (.reviewDecision // \"\"), comments: (.comments|length), reviews: (.reviews|length), last_review: ((.reviews|last|.state) // \"\")}" \
+      --json number,state,isDraft,mergedAt,reviewDecision,title,url,comments,reviews,baseRefName,headRefName \
+      --jq ".[] | select(.state==\"OPEN\" or ((.mergedAt // \"\") > \"$since\")) | {key: \"$r#\(.number)\", url, title: .title[0:60], base: .baseRefName, head: .headRefName, state, draft: .isDraft, decision: (.reviewDecision // \"\"), comments: (.comments|length), reviews: (.reviews|length), last_review: ((.reviews|last|.state) // \"\")}" \
       2>>"$LOG" || return 1
-  done | jq -s 'map({(.key): .}) | add // {}'
+  done | jq -s --argjson b "$b" 'map(select($b == null or (.base as $x | any($b[]; . == $x)) or (.head as $y | any($b[]; . == $y)))) | map({(.key): .}) | add // {}'
 }
 
 run_id() { [ -s "$RUN_ID_FILE" ] && tr -d '[:space:]' <"$RUN_ID_FILE"; }
