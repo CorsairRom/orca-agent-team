@@ -14,7 +14,7 @@ talk, how workers are dispatched, and the rules for review, QA, memory and clean
 | [`../docs/reboot.md`](../docs/reboot.md) | What to do after a reboot or a chat reopen |
 | [`../docs/gotchas.md`](../docs/gotchas.md) | Orca and Claude Code behaviours that break the workflow if ignored |
 | [`../tools/README.md`](../tools/README.md) | The PR monitor and the worker permission watch |
-| [`../config/stack.example.yaml`](../config/stack.example.yaml) | The stack's configuration: repositories, hub layout, delivery, conventions, memory, languages, models, Orca settings |
+| [`../config/stack.example.yaml`](../config/stack.example.yaml) | The stack's configuration: repositories, hub layout, delivery, conventions, memory, languages, models, providers, Orca settings |
 
 ## Placeholders
 
@@ -40,6 +40,7 @@ and again after every config change).
 | `<engram project>`, `ENGRAM_PROJECT` | `memory.engram_project`: the Engram project key every chat and worker uses | Config | Install |
 | `<prefix>`, `TOPIC_PREFIX` | `memory.topic_prefix`: the first segment of every topic key | Config | Install |
 | `<model>`, `<effort>`; `MODEL_<KEY>`, `EFFORT_<KEY>` | A role's or a seniority level's `models.<key>.model` and `.effort` | Config | Install |
+| `PROVIDER_COUNT`; `PROVIDER_<i>_AGENT`, `PROVIDER_<i>_MODEL`, `PROVIDER_<i>_TAKES` | The optional `providers:` list: how many, and per entry the Orca agent id, the model id (possibly empty) and the task kinds it takes ([providers](./roles/tech-lead/SKILL.md#providers)) | Config | Install |
 | `<team repo>`, `TEAM_REPO` | The local clone of this repository | Env file | Install |
 | `<ideas dir>`, `IDEAS_DIR` | `<team dir>/ideas`: Ideas' durable folder | Env file | Install |
 | `<tech-lead dir>`, `TECH_LEAD_DIR` | `<team dir>/tech-lead`: the tech lead's durable folder | Env file | Install |
@@ -198,9 +199,10 @@ the template's default reading of each level; change it to suit the team.
 | Mid | `models.mid` | A bounded feature in one repository, screen notes, QA |
 | Junior | `models.junior` | Mechanical work: docs, renames, a test of a known shape |
 
-Ideas and the tech lead use `models.ideas` and `models.tech_lead`. A worker can run another Orca agent
-(`worker-start --agent`, such as `codex` or `opencode`) when that agent reads its role card and reaches Engram with
-`<engram project>`.
+Ideas and the tech lead use `models.ideas` and `models.tech_lead`. A worker runs another Orca agent only through
+the config's optional `providers:` list, for the task kinds each entry takes, never for a unit with a high-risk
+item, and only after its smoke test passes; Claude reviews its output. The tech lead routes by it
+([Providers](./roles/tech-lead/SKILL.md#providers); [running workers on other providers](../docs/providers.md)).
 
 ## The Run mailboxes
 
@@ -261,6 +263,8 @@ orca orchestration worker-start \
   --deps '["<contract-task-id>"]' --json
 ```
 
+- **Another agent.** A unit routed to a provider uses the dispatch lines of the tech lead's
+  [Providers](./roles/tech-lead/SKILL.md#providers) section, and its brief fills "For a non-Claude worker".
 - **Durable briefs.** Each brief is a file in `<tech-lead dir>/briefs/`, never under `/tmp`. Check it exists before
   `worker-start`: a missing file is passed to the worker as a bare path. Write its path in full in `--spec`; a `~`
   inside quotes is not expanded.
@@ -300,6 +304,8 @@ orca orchestration worker-start \
 
 ## Review and QA
 
+- **Non-Claude output:** Claude, the tech lead or a Claude reviewer, reviews every non-Claude worker's output
+  before it is merged or used ([providers](./roles/tech-lead/SKILL.md#providers)).
 - **Reviewer** ([card](./roles/reviewer/SKILL.md)): fresh context, read-only, runs the checks itself. One for every
   high-risk unit, per unit, with the correction rounds of the [template defaults](#template-defaults) and a recheck
   limited to those blockers, never a new full review. When no unit was high risk, one reviewer on the integrated

@@ -204,3 +204,100 @@ Some repositories run their CI only on PRs into their main branch. With the defa
 [delivery model](./delivery-model.md), a feature's first CI run is then its integration PR.
 
 **What to do:** when that CI run fails, the Tech-lead dispatches a fix unit into the integration branch.
+
+## Other providers
+
+Workers on agents other than Claude Code ([providers](./providers.md)). These entries hold on Orca 1.4.245,
+Antigravity `agy` 1.4.2 and OpenCode 2.2.2, hold on those versions; re-check them after an upgrade of any of the
+three.
+
+### Every worker inherits Orca's environment
+
+A worker's process starts from the environment Orca was started with. A credential exported in a shell profile
+reaches every agent and, through it, its model provider: an agent that runs `env` sends every value to the
+provider. Some agents persist terminal environments to disk `(unverified)`.
+
+**What to do:** keep credentials out of the global environment: in each tool's own auth store, in a 0600 file a
+config references, or in a secret store ([credentials](./setup-guide.md#credentials)). Never export a
+`GITHUB_TOKEN` or a `<PROVIDER>_API_KEY` in a shell profile.
+
+### Orca runs its own Antigravity runtime
+
+For `--agent antigravity`, Orca runs its own Antigravity chat runtime, with its own Google sign-in, separate from
+the `agy` CLI. An `agy` login does not sign it in.
+
+**What to do:** sign in once in Orca, a HUMAN step ([Antigravity setup](./providers.md#antigravity-setup)).
+
+### Antigravity reads MCP servers from Orca's runtime home
+
+Orca's Antigravity runtime runs with `GEMINI_HOME=<orca config>/antigravity-chat` and reads MCP servers from
+`<orca config>/antigravity-chat/config/mcp_config.json`. `agy mcp add` writes under `~/.gemini`, which this runtime
+does not read. A running session loads a changed file only after a restart.
+
+**What to do:** write the Engram server into that file, with the absolute path of `engram`, then restart the
+session ([Antigravity setup](./providers.md#antigravity-setup)).
+
+### Antigravity model ids carry the effort
+
+An Antigravity model id ends with its effort, such as `gemini-3.8-flash-low`, `-medium` or `-high`. There is no
+plain id, and `worker-start` takes no `--effort` for it.
+
+**What to do:** pass the full id with `--model` ([start line](./providers.md#start-an-antigravity-worker)).
+
+### Antigravity has full access by default
+
+Orca's permission setting for Antigravity defaults to full access: nothing stops a write or a command. Under a
+loose brief the model reads unrelated files and runs exploratory commands such as `env`, `ps` and `find`.
+
+**What to do:** a brief for it lists the exact files and commands allowed and forbids everything else
+([brief template](../agents/templates/brief.md)); it never takes a high-risk unit
+([providers](./providers.md#when-the-team-uses-them)).
+
+### Orca cannot pass a model to OpenCode v2
+
+`worker-start --agent opencode2 --model <id>` is refused: the agent "does not support launch-time model selection".
+`--effort` is not supported either.
+
+**What to do:** create the worktree first with `orca worktree create ... --setup skip --json`, then start the
+worker with `--worktree path:<path> --agent opencode2` and no `--model`
+([OpenCode start line](./providers.md#start-an-opencode-worker)).
+
+### OpenCode ignores a default agent that is not primary
+
+OpenCode uses `default_agent` only for an agent with `mode: primary` that is not hidden. A hidden agent or a
+subagent is ignored, and OpenCode falls back to `build` without a word.
+
+**What to do:** define the primary agent `team-worker` with its prompt and permissions and set it as
+`default_agent` ([OpenCode setup](./providers.md#opencode-setup)). It also becomes your own OpenCode default.
+
+### OpenCode starts on the most recent model
+
+The OpenCode TUI starts on the most recent model, from its state file `model.json` (the `recent` list), not on the
+agent's `model`.
+
+**What to do:** HUMAN: open OpenCode and pick the intended model once.
+
+### OpenCode has no model fallback
+
+When a free tier runs out, the session stops with `provider.free-limit` ("Free usage limit reached. ... or switch
+models."). Nothing switches the model, and the session stops.
+
+**What to do:** the Tech-lead reads the worker with `orca orchestration worker-read --dispatch <dispatch-id>
+--source auto`, switches the `team-worker` model and dispatches again on the same worktree
+([OpenCode limits](./providers.md#opencode-limits)).
+
+### OpenCode's last matching permission rule wins
+
+OpenCode applies the last rule that matches a command, in config order. An `ask` rule written before
+`"git push *": "allow"` never applies.
+
+**What to do:** write the `ask` rules for `git push --force*`, `git push * --force*`, `git push -f*`,
+`git push * -f*` and `git push *+*` after the `allow` rule, and keep `git rebase *` and `git reset --hard *` on
+`ask`. They do not catch combined short flags such as `-uf`, `git -C <dir> push --force` or `git -c ... push`
+([OpenCode setup](./providers.md#opencode-setup)).
+
+### `opencode mcp list` may show no servers
+
+`opencode mcp list` may list no MCP servers while `opencode debug config` resolves them.
+
+**What to do:** trust `opencode debug config`, and run `opencode reload` after every config edit.

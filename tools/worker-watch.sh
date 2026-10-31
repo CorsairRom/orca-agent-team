@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# Every N seconds, checks each live supervised worker of a Run for a prompt only a human can answer and tells the Tech-lead once per prompt, in the mailbox of its Orca Run. It never approves anything.
+# Every N seconds, checks each live supervised worker of a Run for a prompt only a human can answer, or a stop on a usage-limit error, and tells the Tech-lead once per prompt or error, in the mailbox of its Orca Run. It never approves anything.
 # It reads Orca's observation.agentWait (worker-show --json); when Orca did not observe the worker, it falls back to worker-read --source auto, and it logs a worker it cannot observe at all.
+# On every tick it also reads each worker's newest rows (worker-read --source auto) for a usage-limit error.
 # Usage: worker-watch.sh [<run_id> [interval_seconds]]   watch until killed (run it in tmux)
 #        worker-watch.sh --once [<run_id>]                one tick printed to stdout; sends and records nothing
 #        worker-watch.sh --help                           print this help and exit
@@ -11,10 +12,11 @@
 #   MONITOR_DIR             directory of worker-watch.seen, worker-watch.log and worker-watch.ticks [required]
 #   RUN_ID_FILE             file holding the Tech-lead's Run id, read on every tick and send [TECH_LEAD_RUN_ID_FILE]
 #   WATCH_INTERVAL_SECONDS  seconds between ticks when no interval argument is given [20]
+#   WATCH_LIMIT_PATTERNS    newline-separated extended regexes of usage-limit errors, added to the built-in defaults [none]
 #   ORCA_BIN                Orca CLI [orca, else orca-ide]
 set -uo pipefail
 
-usage() { sed -n '2,14p' "$0" | sed 's/^# \{0,1\}//'; }
+usage() { sed -n '2,16p' "$0" | sed 's/^# \{0,1\}//'; }
 
 load_env_file() {
   local f="$1" line key
@@ -86,6 +88,27 @@ read_new() {
   done
 }
 
+DEFAULT_LIMIT_PATTERNS='provider\.free-limit
+Free usage limit reached
+usage limit reached
+hit your (usage )?limit
+RESOURCE_EXHAUSTED
+Quota exceeded'
+
+# Reads rows on stdin and prints the last line that matches a default or a WATCH_LIMIT_PATTERNS pattern, case-insensitively.
+limit_match() {
+  grep -i -E -f <(printf '%s\n%s\n' "$DEFAULT_LIMIT_PATTERNS" "${WATCH_LIMIT_PATTERNS:-}" | grep -v '^[[:space:]]*$') | tail -n 1
+}
+
+limit_check() {
+  local ctx="$1" line
+  line="$(limit_match <"$STATE/worker-watch.tail.$ctx")"
+  [ -n "$line" ] || return 0
+  line="$(printf '%s' "$line" | sed 's/^[[:space:]]*//')"; line="${line:0:200}"
+  tick_line "$ctx limit-HIT"
+  notify_once "limit $ctx $line" "[worker watch] $ctx stopped on a usage limit: $line"
+}
+
 notify_once() {
   local key; key=$(printf '%s' "$1" | sha1 | cut -c1-16)
   if [ "$ONCE" = 1 ]; then echo "$2"; return; fi
@@ -105,9 +128,13 @@ tick() {
         obs="$("$ORCA" orchestration worker-show --dispatch "$ctx" --json 2>/dev/null | jq -c '.result.observation // {}' 2>/dev/null)"
         if [ -n "$obs" ] && jq -e 'has("agentWait")' <<<"$obs" >/dev/null; then
           wait="$(jq -c '.agentWait' <<<"$obs")"
-          if [ "$wait" = null ]; then tick_line "$ctx no-wait"; continue; fi
-          tick_line "$ctx wait-PENDING"
-          notify_once "$ctx $wait" "[worker watch] $ctx is WAITING on a prompt only a human can answer: ${wait:0:400}"
+          if [ "$wait" = null ]; then
+            tick_line "$ctx no-wait"
+          else
+            tick_line "$ctx wait-PENDING"
+            notify_once "$ctx $wait" "[worker watch] $ctx is WAITING on a prompt only a human can answer: ${wait:0:400}"
+          fi
+          if read_new "$ctx"; then limit_check "$ctx"; fi
           continue
         fi
         if ! read_new "$ctx"; then
@@ -115,6 +142,7 @@ tick() {
           notify_once "unobservable $ctx" "[worker watch] $ctx cannot be observed (no agentWait, worker-read failed); read it with: orca orchestration worker-read --dispatch $ctx --source auto"
           continue
         fi
+        limit_check "$ctx"
         out="$(cat "$STATE/worker-watch.tail.$ctx")"
         last_allow=$(printf '%s\n' "$out" | grep -n '^\[system\] Allow' | tail -1 | cut -d: -f1)
         if [ -z "$last_allow" ]; then tick_line "$ctx no-allow"; continue; fi

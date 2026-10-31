@@ -51,11 +51,15 @@ jobs:
                    delivery.integration_branch_per_feature delivery.owner_merges_main conventions \
                    memory.engram_project memory.topic_prefix \
                    language.owner_conversation language.artifacts language.app_copy language.app_copy_rules \
-                   models.{ideas,tech_lead,senior,mid,junior}.{model,effort} \
+                   models.{ideas,tech_lead,senior,mid,junior}.{model,effort} providers \
                    orca.chat_ui orca.agent_sleep orca.agent_dashboard \
                    monitors.pr_interval_seconds monitors.watch_interval_seconds monitors.pr_author monitors.merged_window_days; do
             yq -e ".$k != null" "$f" >/dev/null || { echo "missing key: $k"; exit 1; }
           done
+          yq -e '(.providers | tag) == "!!seq" and (.providers | all_c(.agent != null and .model != null and (.takes | tag) == "!!seq" and (.takes | length) > 0))' "$f" >/dev/null \
+            || { echo "providers: each entry needs agent, model and a non-empty takes list"; exit 1; }
+          yq -e '[.providers[].takes[]] | all_c(. == "explore" or . == "docs-draft" or . == "mechanical")' "$f" >/dev/null \
+            || { echo "providers[].takes: each value is one of explore, docs-draft, mechanical"; exit 1; }
       - name: Monitors print their help
         run: |
           tools/pr-monitor.sh --help
