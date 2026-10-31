@@ -78,12 +78,12 @@ orca orchestration worker-start \
 - Under a loose brief the model reads unrelated files and runs exploratory commands, such as `env`, `ps` and
   `find`. With the default full access nothing stops them, and `env` prints every variable of its environment to
   the model provider ([gotchas](./gotchas.md#every-worker-inherits-orcas-environment)).
-- Only the effort levels above exist; a model id without the suffix is not accepted.
+- Only the effort levels above exist; there is no plain model id.
 
 ## OpenCode v2
 
-Orca agent id `opencode2`. OpenCode reads its own config (`~/.config/opencode/opencode.json` by default), and Orca
-passes neither a model nor an effort to it.
+Orca agent id `opencode2`. OpenCode reads its own config (`~/.config/opencode/opencode.json` by default `(unverified)`),
+and Orca passes neither a model nor an effort to it.
 
 ### OpenCode setup
 
@@ -92,6 +92,8 @@ passes neither a model nor an effort to it.
    `team-worker`, with a worker prompt and its permissions, and make it the default. This also changes your own
    default agent when you run OpenCode by hand. Scoping it to Orca's sessions through Orca's per-agent
    environment, `OPENCODE_CONFIG_CONTENT`, is `(unverified)`.
+
+   The shape below is `(unverified)` beyond `mode: primary`, `default_agent`, `{file:<path>}` and the rule order.
 
    ```json
    {
@@ -126,12 +128,12 @@ passes neither a model nor an effort to it.
    ```
 
    The rule for `"*"` is the stack's choice; a rule set to `ask` parks the worker on a prompt, which the
-   [worker watch](../tools/README.md) reports.
+   [worker watch](../tools/README.md) reports `(unverified)`.
 
 2. **The permission order.** The last matching rule wins, in config order. So the `ask` rules for a force push
    come after `"git push *": "allow"`, and `git rebase *` and `git reset --hard *` stay `ask`. These patterns do
    not cover combined short flags such as `-uf`, `git -C <dir> push --force` or `git -c ... push`.
-3. **The worker prompt**, `~/.config/opencode/prompts/team-worker.md`, at least:
+3. **The worker prompt**, `~/.config/opencode/prompts/team-worker.md` `(unverified)`, at least:
 
    ```text
    You are a supervised worker started by Orca. Your brief is the file the task names: read it whole first and
@@ -156,8 +158,8 @@ orca orchestration worker-start \
   --task-title "<title>" --worktree path:<worktree path> --agent opencode2 --json
 ```
 
-Read `<worktree path>` from the `--json` output of `worktree create`. Run it from the Tech-lead's chat, so the
-worktree nests under the Tech-lead's.
+Read `<worktree path>` from the `--json` output of `worktree create`. Run it from the Tech-lead's chat; that the
+worktree then nests under the Tech-lead's is `(unverified)`.
 
 ### OpenCode limits
 

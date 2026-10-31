@@ -80,7 +80,8 @@ If there is any problem, write nothing. Tell the human every problem in one mess
 `# Written from <team repo>/config/stack.yaml by a chat; edit the config, not this file.`, then one `KEY='value'`
 line per key, in the order of the table below. Every value is in single quotes; a `'` inside a value is written
 `'\''`. Write every path absolute: `<home>` instead of a leading `~`, both in the derived paths and in `repos[].path`.
-`<i>` counts the repositories, and the providers, from `0`, in config order. An optional key that is missing takes the default shown.
+`<i>` counts the repositories, and the providers, from `0`, in config order. An optional key that is missing
+takes the default shown.
 Every derived path lies in the team's tree, `TEAM_DIR`, inside the stack's local-share tree
 `<home>/.local/share/<stack.id>/` ([durable folders](../docs/setup-guide.md#durable-folders)). The placeholder each key stands for in the docs, and
 who fills it, is in the [placeholder table](../agents/README.md#placeholders).
@@ -133,8 +134,8 @@ bash -c 'set -eu; . "$1"; for k in STACK_ID TEAM_ID STACK_DIR TEAM_DIR STACK_ENV
 
 **Expected:** the file sources with no error; every value matches `config/stack.yaml` and `<team id>`; every path
 is absolute and lies under `TEAM_DIR`, except `TEAM_REPO`, `HUB_PATH` and the repositories; one line per
-repository and one per provider; the conventions file holds the `conventions` list. On a mismatch, fix the file and read it
-back again. Then show the human the output.
+repository and one per provider; the conventions file holds the `conventions` list. On a mismatch, fix the
+file and read it back again. Then show the human the output.
 
 Edit the configuration, not these two files: they are written again after every config change.
 

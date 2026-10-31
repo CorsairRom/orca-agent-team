@@ -142,9 +142,9 @@ global environment:
 - **No global exports.** A shell profile does not export a `GITHUB_TOKEN`, a `<PROVIDER>_API_KEY` or any other
   secret.
 - **Each tool's own auth store.** `gh auth login`, Claude Code's login and each agent's own sign-in keep their
-  credentials where only that tool reads them.
+  credentials in a store of its own.
 - **A file the config references.** A config that needs a key points to a file instead of holding the value, such
-  as OpenCode's `{file:~/.secrets/<provider>-key}`. The file is `chmod 600`, outside every repository.
+  as OpenCode's `{file:<absolute path>}`. The file is `chmod 600`, outside every repository.
 - **A secret store**, such as the OS keychain, for anything a tool reads at run time.
 
 ## Building the tree
@@ -284,6 +284,9 @@ orca orchestration worker-start \
 Every worker is Claude unless the config's optional `providers:` section lists another agent, such as Antigravity
 or OpenCode v2, for some task kinds. Each one needs its own setup, HUMAN steps included, and a passed smoke test
 before its first unit: [providers](./providers.md). Skip this step for a Claude-only team.
+
+The example config lists two providers as an illustration. Keep an entry only after that provider's setup and
+smoke test; otherwise write `providers: []`.
 
 ### The monitors
 

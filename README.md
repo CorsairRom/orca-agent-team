@@ -71,7 +71,8 @@ refers to this table for versions.
 The tools run on Linux and macOS with the system's own utilities; [`tools/README.md`](./tools/README.md#requirements)
 lists them.
 
-Optional: workers on other agents, such as Antigravity or OpenCode v2, need their own setup ([providers](./docs/providers.md)).
+Optional: workers on other agents, such as Antigravity or OpenCode v2, need their own
+setup ([providers](./docs/providers.md)).
 
 ## Install
 
