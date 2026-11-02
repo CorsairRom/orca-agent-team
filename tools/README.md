@@ -226,16 +226,19 @@ Expected: `[PR monitor] alive check` arrives in the Tech-lead's mailbox.
 ### Check the sender
 
 The alive check must carry the Tech-lead's identity. Compare its sender with the sender of the Tech-lead's own
-`[Tech-lead] ready` message:
+`[Tech-lead] ready` message sent to Ideas:
 
 ```bash
-orca orchestration inbox --limit 100 --json | jq -c '[.. | objects | select(has("subject"))] | unique_by(.id)[] | select(.subject|startswith("[PR monitor] alive check") or startswith("[Tech-lead] ready")) | {id,from,subject}'
+. <env file>
+orca orchestration inbox --limit 100 --json | jq -c --arg tl "run:$(cat "$TECH_LEAD_RUN_ID_FILE")" --arg ideas "run:$(cat "$IDEAS_RUN_ID_FILE")" '.result.messages as $m | [first($m[] | select(.to == $tl and (.subject | startswith("[PR monitor] alive check")))), first($m[] | select(.to == $ideas and (.subject | startswith("[Tech-lead] ready"))))] | map({id, from, subject})'
 ```
 
-On Orca 1.4.246 an inbox message carries `id`, `type`, `from`, `to`, `subject`, `handled` and `body`; it has no
-timestamp field, so the lines come in `id` order, not by age, and picking the newest one is `(unverified)`.
+On Orca 1.4.246 `inbox` lists the messages under `.result.messages`, newest first, and holds the mail of every Run on
+the Orca. Each message carries `id`, `type`, `from`, `to` (`run:<run id>`), `subject`, `handled` and `body`. The query
+takes the newest alive check sent to the Tech-lead's Run and the newest `[Tech-lead] ready` sent to Ideas' Run, so
+another team's mail does not show.
 
-Expected: the alive check and the `[Tech-lead] ready` message show the same `from`. Another sender
+Expected: one line each, with the same `from`. Another sender
 means the sessions carry another chat's identity: the Tech-lead starts them again with the start lines above. A send
 refused with `no_active_sender_terminal` means the session has no live Orca identity at all `(unverified)`. Whether a
 Tech-lead identity still sends after the Chat UI's idle sweep has stopped its process is `(unverified)`; the

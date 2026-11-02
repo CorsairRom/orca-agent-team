@@ -11,7 +11,7 @@ Run every step in order. Every command block starts by loading the stack's env f
 `config/stack.yaml` as [`tools/README.md`](../../tools/README.md#writing-the-env-file) describes:
 `. <env file>`. `<env file>` is the env file the prompt that started this turn names; a prompt that names none means the default team's, `~/.local/share/<stack.id>/stack.env` ([teams](../../tools/README.md#teams)). Shell variables do not survive between Bash calls, so
 load it in each block; no command here reads `config/stack.yaml`. It sets `$IDEAS_DIR` (`<ideas dir>`), `$IDEAS_RUN_ID_FILE`,
-`$TECH_LEAD_RUN_ID_FILE`, `$STACK_NAME`, `$ENGRAM_PROJECT` and `$TOPIC_PREFIX`
+`$TECH_LEAD_RUN_ID_FILE`, `$STACK_NAME`, `$ENGRAM_PROJECT` and `$IDEAS_STATUS_TOPIC`
 ([placeholders](../README.md#placeholders)). If the env file sets no `TEAM_DIR`, it predates [teams](../../tools/README.md#teams): write it again first, with an empty `<team id>`, by [Writing the env file](../../tools/README.md#writing-the-env-file).
 
 1. **Identity.** RESUME only. **FIRST START: there is no prior session; skip to step 2.**

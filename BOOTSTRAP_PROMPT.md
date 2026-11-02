@@ -307,11 +307,14 @@ You only check them:
 cd "$TEAM_REPO"
 tmux ls
 tail -n 1 "$MONITOR_DIR/monitor.log"
-orca orchestration inbox --limit 100 --json | jq -c '[.. | objects | select(has("subject"))] | unique_by(.id)[] | select(.subject|startswith("[PR monitor] alive check") or startswith("[Tech-lead] ready")) | {id,from,subject}'
+orca orchestration inbox --limit 100 --json | jq -c --arg tl "run:$(cat "$TECH_LEAD_RUN_ID_FILE")" --arg ideas "run:$(cat "$IDEAS_RUN_ID_FILE")" '.result.messages as $m | [first($m[] | select(.to == $tl and (.subject | startswith("[PR monitor] alive check")))), first($m[] | select(.to == $ideas and (.subject | startswith("[Tech-lead] ready"))))] | map({id, from, subject})'
 ```
 
+The inbox lists newest first on Orca 1.4.246 and holds every Run's mail, so the query takes the newest alive check
+sent to the Tech-lead's Run and the newest `[Tech-lead] ready` sent to Ideas' Run.
+
 **Expected:** `tmux ls` lists both sessions; the last line of `monitor.log` is the send receipt of the alive check;
-the `[PR monitor] alive check` and the `[Tech-lead] ready` message show the same `from`, the Tech-lead's
+the query prints one line each for the `[PR monitor] alive check` and the `[Tech-lead] ready` message, with the same `from`, the Tech-lead's
 ([Check the sender](./tools/README.md#check-the-sender)). A missing session, a missing alive check or another
 sender: send the Tech-lead a `[Bootstrap]` message through its Run asking it to run its checklist step 4 again,
 then check once more.
