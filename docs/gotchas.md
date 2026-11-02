@@ -15,15 +15,17 @@ chat that the Chat UI's idle sweep has closed is `(unverified)`.
 
 **What to do:** follow [the mailbox rule](../agents/README.md#the-mailbox-rule), which quotes the prompt.
 
-### A Run replays a Delivery until it is acknowledged
+### A plain check marks its batch handled
 
-A plain `check` returns the Run's oldest unacknowledged batch, the Delivery, whole: it is never filtered by type.
-The same Delivery comes back on every `check` until it is acknowledged with `--ack <deliveryId>`, so an
-unacknowledged batch hides newer mail. `--peek` and `--all` show rows but return no `deliveryId`; take it from a
-plain `check` (`orca orchestration check --help`).
+On Orca 1.4.246 a plain `check` returns the Run's oldest unread batch whole, never filtered by type, and marks it
+handled: the result is `{"ok":true,"result":{"messages":[…]}}` with no `deliveryId`, and a second `check` returns
+the next batch, or `"messages":[]` when none is left. A batch that is read but not acted on is not returned again.
+`--peek` returns only unread messages without marking them. `--ack` is for a batch from an older Orca that does not
+mark it (`orca orchestration check --help`); on such a version the same batch comes back on every `check` until it
+is acknowledged with `--ack <deliveryId>` `(unverified)`.
 
-**What to do:** process every message, then acknowledge, as [the mailbox rule](../agents/README.md#the-mailbox-rule)
-says.
+**What to do:** act on every message of each batch as soon as it is read, and repeat `check` until `messages` is
+empty, as [the mailbox rule](../agents/README.md#the-mailbox-rule) says.
 
 ### A Run is bound to the session that created it
 

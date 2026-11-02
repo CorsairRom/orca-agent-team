@@ -307,11 +307,11 @@ You only check them:
 cd "$TEAM_REPO"
 tmux ls
 tail -n 1 "$MONITOR_DIR/monitor.log"
-orca orchestration inbox --limit 100 --json | jq -r '[.. | objects | select(has("from_handle") and has("subject"))] | unique_by(.id) | sort_by(.created_at)[] | select((.subject | startswith("[PR monitor] alive check")) or (.subject | startswith("[Tech-lead] ready"))) | "\(.created_at)  \(.from_handle)  \(.subject)"'
+orca orchestration inbox --limit 100 --json | jq -c '[.. | objects | select(has("subject"))] | unique_by(.id)[] | select(.subject|startswith("[PR monitor] alive check") or startswith("[Tech-lead] ready")) | {id,from,subject}'
 ```
 
 **Expected:** `tmux ls` lists both sessions; the last line of `monitor.log` is the send receipt of the alive check;
-the newest `[PR monitor] alive check` and the newest `[Tech-lead] ready` show the same `from_handle`, the Tech-lead's
+the `[PR monitor] alive check` and the `[Tech-lead] ready` message show the same `from`, the Tech-lead's
 ([Check the sender](./tools/README.md#check-the-sender)). A missing session, a missing alive check or another
 sender: send the Tech-lead a `[Bootstrap]` message through its Run asking it to run its checklist step 4 again,
 then check once more.

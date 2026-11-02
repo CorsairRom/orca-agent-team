@@ -245,14 +245,14 @@ checklist is skipped: there is no prior session.
 Each coordinator creates its own Run **from its own chat**, never from a subagent or another chat:
 
 ```bash
-orca orchestration run-current --json | jq '.result.run'
+orca orchestration run-current --json | jq -r '.result.runId // empty'
 orca orchestration run-create --objective "<objective>" --json
-orca orchestration run-current --json | jq -r '.result.run.id' > <ideas dir>/run-id.txt   # or <tech-lead dir>/run-id.txt
+orca orchestration run-current --json | jq -r '.result.runId' > <ideas dir>/run-id.txt   # or <tech-lead dir>/run-id.txt
 ```
 
-The first line checks for a Run already bound to this chat (`null` when none); the chat creates one only when there
-is none or the old one is unusable. Expected: the run-id file holds only the id, on one line. The `.result.run.id`
-path is `(unverified)`.
+The first line checks for a Run already bound to this chat (empty when none: `.result.runId` is missing or `null`);
+the chat creates one only when there is none or the old one is unusable. Expected: the run-id file holds only the id,
+on one line. On Orca 1.4.246 `run-current --json` returns `{"ok":true,"result":{"runId":"run_…","objective":"…"}}`.
 
 ### Workers
 
@@ -317,7 +317,7 @@ default one, with an empty id.
 | The two hub worktrees, `Ideas-<team id>` and `Tech-lead-<team id>` | The hub repository, its PRD and decision folders |
 | The Runs, the workers and their worktrees | The repositories of the stack and their clones |
 | The monitor sessions `<stack.id>-<team id>-*` and the PR branches file | The `gh` account the PR monitor polls with |
-| The backlog file, `BACKLOG-<team id>.md` by default, and the inventory topic | The Engram project and every role lesson |
+| The backlog file, `BACKLOG-<team id>.md` by default, the inventory topic and Ideas' status topic | The Engram project and every role lesson |
 
 - **Two teams never work on the same feature.** A feature belongs to the team whose Ideas wrote its PRD. When two
   features touch the same repository, each team's Tech-lead works on its own integration branch; a change one team

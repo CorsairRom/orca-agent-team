@@ -116,6 +116,7 @@ who fills it, is in the [placeholder table](../agents/README.md#placeholders).
 | `MONITOR_DIR` | `<TEAM_DIR>/monitors`: state and logs of both monitors; the monitors stop without it |
 | `TMUX_PREFIX` | `<stack.id>` for the default team; `<stack.id>-<team id>` for a named team: the monitors run in the tmux sessions `<TMUX_PREFIX>-pr-monitor` and `<TMUX_PREFIX>-worker-watch` |
 | `INVENTORY_TOPIC` | `<prefix>/agents/tech-lead-inventory` for the default team; `<prefix>/agents/<team id>/tech-lead-inventory` for a named team: the Engram topic of the Tech-lead's inventory |
+| `IDEAS_STATUS_TOPIC` | `<prefix>/agents/ideas-status` for the default team; `<prefix>/agents/<team id>/ideas-status` for a named team: the Engram topic of Ideas' status note |
 | `PR_MONITOR_BRANCHES_FILE` | `<TECH_LEAD_DIR>/branches.txt`: the team's integration branches; when the file exists, the PR monitor reports only their PRs ([teams](#teams)) |
 | `PR_INTERVAL_SECONDS`, `WATCH_INTERVAL_SECONDS` | `monitors.pr_interval_seconds`, `monitors.watch_interval_seconds`; default `300`, `20` |
 | `PR_MONITOR_AUTHOR`, `PR_MONITOR_MERGED_DAYS` | `monitors.pr_author`, `monitors.merged_window_days`; default `@me`, `2` |
@@ -126,7 +127,7 @@ quotes; an empty file when the list is empty or missing. The Tech-lead pastes it
 **4. Read back.** Run, with the path you wrote:
 
 ```bash
-bash -c 'set -eu; . "$1"; for k in STACK_ID TEAM_ID STACK_DIR TEAM_DIR STACK_ENV_FILE BOOTSTRAP_DIR TEAM_REPO HUB_PATH HUB_MAIN_BRANCH HUB_BACKLOG_FILE REPO_COUNT MODEL_IDEAS EFFORT_IDEAS MODEL_TECH_LEAD EFFORT_TECH_LEAD PROVIDER_COUNT IDEAS_DIR TECH_LEAD_DIR IDEAS_WORKTREE_NAME TECH_LEAD_WORKTREE_NAME IDEAS_RUN_ID_FILE TECH_LEAD_RUN_ID_FILE RUN_ID_FILE CONVENTIONS_FILE MONITOR_DIR TMUX_PREFIX INVENTORY_TOPIC PR_MONITOR_BRANCHES_FILE; do printf "%s=%s\n" "$k" "${!k}"; done
+bash -c 'set -eu; . "$1"; for k in STACK_ID TEAM_ID STACK_DIR TEAM_DIR STACK_ENV_FILE BOOTSTRAP_DIR TEAM_REPO HUB_PATH HUB_MAIN_BRANCH HUB_BACKLOG_FILE REPO_COUNT MODEL_IDEAS EFFORT_IDEAS MODEL_TECH_LEAD EFFORT_TECH_LEAD PROVIDER_COUNT IDEAS_DIR TECH_LEAD_DIR IDEAS_WORKTREE_NAME TECH_LEAD_WORKTREE_NAME IDEAS_RUN_ID_FILE TECH_LEAD_RUN_ID_FILE RUN_ID_FILE CONVENTIONS_FILE MONITOR_DIR TMUX_PREFIX INVENTORY_TOPIC IDEAS_STATUS_TOPIC PR_MONITOR_BRANCHES_FILE; do printf "%s=%s\n" "$k" "${!k}"; done
   for ((i = 0; i < REPO_COUNT; i++)); do p="REPO_${i}_PATH"; r="REPO_${i}_REMOTE"; k="REPO_${i}_KIND"; printf "%s %s %s\n" "${!k}" "${!r}" "${!p}"; done
   for ((i = 0; i < PROVIDER_COUNT; i++)); do a="PROVIDER_${i}_AGENT"; m="PROVIDER_${i}_MODEL"; t="PROVIDER_${i}_TAKES"; printf "provider %s model=%s takes=%s\n" "${!a}" "${!m}" "${!t}"; done
   cat "$CONVENTIONS_FILE"' _ <TEAM_DIR>/stack.env
@@ -164,11 +165,11 @@ after-start checklist does this):
 ```bash
 . ~/.local/share/acme/stack.env
 mkdir -p "$TECH_LEAD_DIR"
-orca orchestration run-current --json | jq -r '.result.run.id' > "$TECH_LEAD_RUN_ID_FILE"
+orca orchestration run-current --json | jq -r '.result.runId' > "$TECH_LEAD_RUN_ID_FILE"
 ```
 
-`run-current` returns `.result.run` (`null` outside a coordinator); the `.id` field inside it is (unverified)
-against the CLI help, which does not document the JSON shape. Check the file holds one id, not `null`.
+On Orca 1.4.246 `run-current --json` returns `{"ok":true,"result":{"runId":"run_…","objective":"…"}}`: the id is at
+`.result.runId`, and `.result.run` does not exist. Check the file holds one id, not `null`.
 
 The Tech-lead chat starts both monitors, detached in tmux, so they outlive its process. It starts them, not the
 installing chat, because a monitor sends under the Orca identity of the chat that started it, and the installing
@@ -228,10 +229,13 @@ The alive check must carry the Tech-lead's identity. Compare its sender with the
 `[Tech-lead] ready` message:
 
 ```bash
-orca orchestration inbox --limit 100 --json | jq -r '[.. | objects | select(has("from_handle") and has("subject"))] | unique_by(.id) | sort_by(.created_at)[] | select((.subject | startswith("[PR monitor] alive check")) or (.subject | startswith("[Tech-lead] ready"))) | "\(.created_at)  \(.from_handle)  \(.subject)"'
+orca orchestration inbox --limit 100 --json | jq -c '[.. | objects | select(has("subject"))] | unique_by(.id)[] | select(.subject|startswith("[PR monitor] alive check") or startswith("[Tech-lead] ready")) | {id,from,subject}'
 ```
 
-Expected: the newest alive check and the newest `[Tech-lead] ready` show the same `from_handle`. Another sender
+On Orca 1.4.246 an inbox message carries `id`, `type`, `from`, `to`, `subject`, `handled` and `body`; it has no
+timestamp field, so the lines come in `id` order, not by age, and picking the newest one is `(unverified)`.
+
+Expected: the alive check and the `[Tech-lead] ready` message show the same `from`. Another sender
 means the sessions carry another chat's identity: the Tech-lead starts them again with the start lines above. A send
 refused with `no_active_sender_terminal` means the session has no live Orca identity at all `(unverified)`. Whether a
 Tech-lead identity still sends after the Chat UI's idle sweep has stopped its process is `(unverified)`; the
@@ -358,7 +362,7 @@ two large features do not share one product-owner queue or one Tech-lead context
 - **The default team** has an empty `<team id>`. Its paths, worktree names and tmux sessions are the ones every
   example in these docs shows.
 - **A named team** has a `<team id>` such as `billing`. Everything that belongs to one team is derived from it:
-  `TEAM_DIR`, the worktree names, `TMUX_PREFIX`, `INVENTORY_TOPIC` and the backlog file. The stack's
+  `TEAM_DIR`, the worktree names, `TMUX_PREFIX`, `INVENTORY_TOPIC`, `IDEAS_STATUS_TOPIC` and the backlog file. The stack's
   `config/stack.yaml`, the Engram project and the hub's PRD and decision folders stay shared.
 
 The PR monitor polls with `--author`, which is the same `gh` account for every team. So a Tech-lead that is not

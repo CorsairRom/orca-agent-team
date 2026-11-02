@@ -36,12 +36,12 @@ command here reads `config/stack.yaml`. If the env file sets no `TEAM_DIR`, it p
 
    ```bash
    . <env file>
-   orca orchestration run-current --json | jq '.result.run'
+   orca orchestration run-current --json | jq -r '.result.runId // empty'
    cat "$TECH_LEAD_RUN_ID_FILE" 2>/dev/null
    ```
 
-   - The Run shown is the one whose id is in the run-id file: keep it.
-   - It is `null`, or another Run, or the command refuses this caller: create one and store its id, only the id, on
+   - The id shown is the one in the run-id file: keep it.
+   - It is empty (`.result.runId` is missing or `null`), or another id, or the command refuses this caller: create one and store its id, only the id, on
      one line. On a RESUME, first check the old Run for live or pending dispatches
      (`orca orchestration worker-list --run <old run id> --json`): their mail keeps going to the old Run, so list
      them in step 6.
@@ -50,14 +50,15 @@ command here reads `config/stack.yaml`. If the env file sets no `TEAM_DIR`, it p
      . <env file>
      mkdir -p "$TECH_LEAD_DIR/briefs" "$TECH_LEAD_DIR/reports" "$TECH_LEAD_DIR/pr-bodies"
      orca orchestration run-create --objective "$STACK_NAME Tech-lead${TEAM_ID:+ ($TEAM_ID)}" --json
-     orca orchestration run-current --json | jq -r '.result.run.id' > "$TECH_LEAD_RUN_ID_FILE"
+     orca orchestration run-current --json | jq -r '.result.runId' > "$TECH_LEAD_RUN_ID_FILE"
      cat "$TECH_LEAD_RUN_ID_FILE"
      ```
 
-     Expected: the file holds one Run id and nothing else. The `.result.run.id` path is `(unverified)`; `.result.run`
-     is the key `run-current --json` returns. The monitors read the file on every send, so a new Run needs no restart.
+     Expected: the file holds one Run id and nothing else. On Orca 1.4.246 `run-current --json` returns
+     `{"ok":true,"result":{"runId":"run_…","objective":"…"}}`; the id is at `.result.runId`, and `.result.run` does not
+     exist. The monitors read the file on every send, so a new Run needs no restart.
 3. **Mailbox.** Read the mailbox once now, by [the mailbox rule](../README.md#the-mailbox-rule). Messages with the
-   subject prefix `[PR monitor]` or `[Worker watch]` may be there already; read and acknowledge them.
+   subject prefix `[PR monitor]` or `[Worker watch]` may be there already; read them.
 
 4. **Monitors.** FIRST START and RESUME. You start them, from this chat, so they send under your Orca identity;
    the installing chat does not. Stop any copy still running and start both, with the start lines of
@@ -123,7 +124,7 @@ command here reads `config/stack.yaml`. If the env file sets no `TEAM_DIR`, it p
    answer arrives.
 
 7. **Record the confirmation.** FIRST START only. When `[From Ideas] handshake received` arrives in your mailbox,
-   write Ideas' Run id, only the id, to `$TECH_LEAD_DIR/handshake-ok.txt`, then acknowledge the Delivery:
+   write Ideas' Run id, only the id, to `$TECH_LEAD_DIR/handshake-ok.txt`:
 
    ```bash
    . <env file>
@@ -138,7 +139,7 @@ command here reads `config/stack.yaml`. If the env file sets no `TEAM_DIR`, it p
 
 ## Standing rules
 
-- **Mailbox.** Read and acknowledge your mail by [the mailbox rule](../README.md#the-mailbox-rule); `<own run id>`
+- **Mailbox.** Read your mail by [the mailbox rule](../README.md#the-mailbox-rule); `<own run id>`
   is `$(cat "$TECH_LEAD_RUN_ID_FILE")`.
 - Reach Ideas only with `orca orchestration send --to "run:$(cat "$IDEAS_RUN_ID_FILE")"`, subject prefix
   `[Tech-lead]`, body from a file. Never `orca terminal send` to another agent.
