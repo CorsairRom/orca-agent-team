@@ -47,12 +47,12 @@ and again after every config change).
 | `<ideas worktree name>`, `<tech-lead worktree name>`; `IDEAS_WORKTREE_NAME`, `TECH_LEAD_WORKTREE_NAME` | `Ideas` and `Tech-lead`, or `Ideas-<team id>` and `Tech-lead-<team id>` for a named team | Env file | Install |
 | `<tmux prefix>`, `TMUX_PREFIX` | `<stack.id>`, or `<stack.id>-<team id>` for a named team: the prefix of the two monitor sessions | Env file | Install |
 | `<inventory topic>`, `INVENTORY_TOPIC` | The Engram topic of the tech lead's inventory: `<prefix>/agents/tech-lead-inventory`, or `<prefix>/agents/<team id>/tech-lead-inventory` for a named team | Env file | Install |
+| `<ideas status topic>`, `IDEAS_STATUS_TOPIC` | The Engram topic of Ideas' status note: `<prefix>/agents/ideas-status`, or `<prefix>/agents/<team id>/ideas-status` for a named team | Env file | Install |
 | `<bootstrap dir>`, `BOOTSTRAP_DIR` | `<team dir>/bootstrap`: the installing chat's folder | Env file | Install |
 | `<ideas run-id file>`, `IDEAS_RUN_ID_FILE` | `<ideas dir>/run-id.txt`, holding Ideas' Run id, only the id, on one line | The path: env file. The id: Ideas | Ideas' first turn, and whenever it creates a new Run |
 | `<tech-lead run-id file>`, `TECH_LEAD_RUN_ID_FILE`, `RUN_ID_FILE` | `<tech-lead dir>/run-id.txt`, holding the tech lead's Run id; the monitors send to it | The path: env file. The id: the tech lead | The tech lead's first turn, and whenever it creates a new Run |
 | `<own run id>` | The id in the reading chat's own run-id file | The chat, with `cat` | Every mailbox check |
 | `<peer run-id file>` | The other permanent chat's run-id file | The chat | Every send |
-| `<deliveryId>` | `.result.deliveryId` of the last plain `orca orchestration check` | The chat | Every mailbox check |
 | `<ideas worktree>`, `<tech-lead worktree>` | Absolute paths of the two hub worktrees, read from the `orca worktree create --json` output: Orca chooses where they live | The installing chat | Bootstrap step 5 |
 | `<target branch>` | The branch a work unit starts from and its PR targets, per repository: the feature's integration branch when `DELIVERY_INTEGRATION_BRANCH_PER_FEATURE` is `true`, the repository's main branch when it is `false` | The tech lead, in each brief | Each brief |
 | `<dispatch-id>`, `<task-id>` | A worker's ids, from the JSON `worker-start` prints or from `orca orchestration worker-list --json` | The tech lead | Each dispatch |
@@ -213,7 +213,7 @@ run-id file. They talk only through those Runs. The steps that set this up are t
 - **Create the Run from the coordinator's own chat**, never from a subagent or another chat. A Run is bound to the
   session that created it; another session cannot read its mailbox or dispatch under it
   ([gotchas](../docs/gotchas.md#a-run-is-bound-to-the-session-that-created-it)).
-  `orca orchestration run-current --json` shows the bound Run (`.result.run` is `null` when there is none);
+  `orca orchestration run-current --json` shows the bound Run (the id is at `.result.runId`, `null` or missing when there is none);
   `orca orchestration run-create --objective "<objective>" --json` creates one, and its id goes alone on one line
   into the run-id file.
 - **Receive** by [the mailbox rule](#the-mailbox-rule) below.
@@ -239,13 +239,14 @@ also reaches a chat that the Chat UI idle sweep has closed is `(unverified)`.
 On that prompt, and whenever the chat starts or resumes:
 
 1. `orca orchestration check --run <own run id> --json`;
-2. read EVERY message of the Delivery, heartbeats included;
+2. read EVERY message of the batch it returns, heartbeats included;
 3. act on each;
-4. acknowledge: `orca orchestration check --run <own run id> --ack <deliveryId> --json`. The answer is the next
-   Delivery; repeat from 2 until `deliveryId` is `null`.
+4. repeat from 1 until `.result.messages` is empty. Optionally confirm with
+   `orca orchestration check --run <own run id> --peek --json`, which returns only unread messages without
+   marking them.
 
-No background wait. A Run replays the same Delivery until it is acknowledged, so an unacknowledged batch hides
-newer mail ([gotchas](../docs/gotchas.md#a-run-replays-a-delivery-until-it-is-acknowledged)). `<own run id>` is
+No flag is needed to acknowledge: on Orca 1.4.246 a plain `check` returns the Run's oldest unread batch and marks it
+handled ([gotchas](../docs/gotchas.md#a-plain-check-marks-its-batch-handled)). `<own run id>` is
 the id in the chat's own run-id file: `$(cat "$IDEAS_RUN_ID_FILE")` for Ideas, `$(cat "$TECH_LEAD_RUN_ID_FILE")`
 for the tech lead.
 

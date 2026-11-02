@@ -46,7 +46,7 @@ orca orchestration send --to "run:$(cat ~/.local/share/acme/tech-lead/run-id.txt
 - The body is written to a file first and passed with `"$(cat <file>)"`, so the shell never expands its content.
 - Subjects start with `[From Ideas]` or `[Tech-lead]`. The monitors use `[PR monitor]` and `[Worker watch]`.
 - Each chat receives its mail by [the mailbox rule](./agents/README.md#the-mailbox-rule): Orca prompts the idle
-  chat when mail arrives, and the chat checks, reads, acts and acknowledges.
+  chat when mail arrives, and the chat checks, reads and acts on every message.
 - Nobody types into another agent's chat or terminal.
 - Workers reach the Tech-lead through its Run, with `worker_done`, `ask`, `escalation` and heartbeats.
 
