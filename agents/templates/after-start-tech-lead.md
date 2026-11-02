@@ -13,8 +13,8 @@ Every command block starts by loading the stack's env file, written from `config
 [`tools/README.md`](../../tools/README.md#writing-the-env-file) describes: `. <env file>`. `<env file>` is the env file the prompt that started this turn names; a prompt that names none means the default team's, `~/.local/share/<stack.id>/stack.env` ([teams](../../tools/README.md#teams)).
 Shell variables do not survive between Bash calls, so load it in each block. It sets `$TECH_LEAD_DIR`
 (`<tech-lead dir>`), `$TECH_LEAD_RUN_ID_FILE`, `$IDEAS_RUN_ID_FILE`, `$STACK_ID`, `$STACK_NAME`, `$TEAM_REPO`,
-`$ENGRAM_PROJECT`, `$TOPIC_PREFIX` and the `REPO_<i>_*` keys ([placeholders](../README.md#placeholders)). No
-command here reads `config/stack.yaml`. If the env file sets no `TEAM_DIR`, it predates [teams](../../tools/README.md#teams): write it again first, with an empty `<team id>`, by [Writing the env file](../../tools/README.md#writing-the-env-file).
+`$ENGRAM_PROJECT`, `$TOPIC_PREFIX`, `$INVENTORY_TOPIC` and the `REPO_<i>_*` keys
+([placeholders](../README.md#placeholders)). No command here reads `config/stack.yaml`. If the env file sets no `TEAM_DIR`, it predates [teams](../../tools/README.md#teams): write it again first, with an empty `<team id>`, by [Writing the env file](../../tools/README.md#writing-the-env-file).
 
 ## Run it in this order
 

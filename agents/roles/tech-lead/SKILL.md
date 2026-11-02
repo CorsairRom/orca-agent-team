@@ -16,7 +16,7 @@ You and Ideas are both Orca chats, each the coordinator of its own Run
 
 - Your Run id is in `<tech-lead run-id file>`, Ideas' in `<ideas run-id file>`. Each holds only the id. Ideas'
   mail, your workers' messages and the two monitors' notes all arrive in your Run.
-- Read and acknowledge your mail by [the mailbox rule](../../README.md#the-mailbox-rule).
+- Read your mail by [the mailbox rule](../../README.md#the-mailbox-rule).
 - Reach Ideas only through its Run: write the body to a file in `<tech-lead dir>/briefs/`, then
   `orca orchestration send --to "run:$(cat <ideas run-id file>)" --type status --subject "[Tech-lead] ..." --body "$(cat <file>)"`.
   Never `orca terminal send` to another agent: it overwrites what the human is typing.

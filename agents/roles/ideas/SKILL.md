@@ -50,7 +50,7 @@ You and the tech lead are both Orca chats, each the coordinator of its own Run
 ([the Run mailboxes](../../README.md#the-run-mailboxes)):
 
 - Your Run id is in `<ideas run-id file>`, the tech lead's in `<tech-lead run-id file>`. Each holds only the id.
-- Read and acknowledge your mail by [the mailbox rule](../../README.md#the-mailbox-rule); acting means relaying or
+- Read your mail by [the mailbox rule](../../README.md#the-mailbox-rule); acting means relaying or
   answering every message.
 - Write each message to a file in `<ideas dir>/briefs/`, then send it:
   `orca orchestration send --to "run:$(cat <tech-lead run-id file>)" --type status --subject "[From Ideas] ..." --body "$(cat <file>)"`.
