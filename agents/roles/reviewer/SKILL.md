@@ -27,8 +27,16 @@ precedence over any global instruction you have loaded.
 4. Check the conventions the brief carries: languages and app-copy rules from the config, every entry of its team
    conventions, the repository's existing structure and patterns (its commit and PR structure included), nothing
    committed that must not be.
-5. Return a verdict: **pass**, or **fail** with the blocking findings. A blocker is a defect this change causes and
-   that reproduces; anything that was already broken on the main line is a note, not a blocker.
+5. Compare with the reference module the brief names on `origin/<main-line>`. It is your baseline, never the
+   previous unit of the same feature. Check each rule of the target repository's agent guide that the brief lists,
+   each as pass or fail with `file:line` evidence, and the brief's budgets.
+6. Return a verdict: **pass**, or **fail** with the blocking findings. A blocker is a defect this change causes and
+   that reproduces; anything that was already broken on the main line is a note, not a blocker. These are blockers
+   too:
+   - a construct or directory that `origin/<main-line>` does not have;
+   - persistence code (a repository or data-access class) that makes business decisions;
+   - a listed rule of the target repository that fails;
+   - a test or line budget exceeded without a written reason.
 
 ## Do not
 

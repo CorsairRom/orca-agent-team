@@ -58,6 +58,7 @@ delivery:
 #   - "Feature flags gate every new module."
 #   - "The Tech-lead opens every integration PR ready for review, not as a draft."
 #   - "A new library, pattern or shared layer needs a written Tech-lead decision first; the reviewer blocks it."
+#   - "A construct the base branch does not have needs the product owner's written approval; the reviewer blocks it."
 #   - "A PR body that does not follow the repository's PR template is a review blocker."
 #   - "A worker blocked for more than 30 minutes on the same thing asks the Tech-lead."
 conventions: []

@@ -60,6 +60,20 @@ This brief takes precedence over any global instruction you have loaded:
 - **Screen note:** <link, or "none: no screen changes">
 - **Contract or design note:** <link, or "none">
 
+## Reference, rules and budgets
+
+- **Reference module:** `<path>` on `origin/<main-line>`, the module that already does the same kind of work (the
+  reference note: <link>). A reviewer takes it as its baseline.
+- **Placement:** <where each rule of the task goes in the reference module, one line per rule>. Copy that module,
+  never an earlier unit of this feature.
+- **Constructs:** ports, adapters, a new base class and a new layer or folder kind stay out unless the base branch
+  has them or the product owner approved them in writing: <link, or "none">.
+- **Rules to check:** the numbered rules of `<the target repository's agent guide: AGENTS.md or CLAUDE.md>` this task
+  must pass: <rule numbers>. Your report gives each one as pass or fail with `file:line` evidence.
+- **Budgets:** tests per endpoint or screen: <n, the repository's existing density>. Lines per file: <cap>. Lines
+  per unit: <cap>. Stop and `orca orchestration ask` before exceeding one. An acceptance row is not automatically a
+  test.
+
 ## Acceptance
 
 - **Observable result:** <what a person or a test sees>

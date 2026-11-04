@@ -72,11 +72,22 @@ back to Ideas.
   `new-child` under yours, so you keep dispatching instead of serializing on them. Your own Claude subagents are
   only for small hub notes (backlog rows); a subagent worktree that commits stays until its PR merges, then you
   remove it.
+- **Reference module.** Before a developer brief, a reference note names the module on the target repository's base
+  branch (`origin/<main-line>`, not the feature's integration branch) that already does the same kind of work, and
+  where each rule of the task goes in it. You write the note, or a read-only worker you dispatch does. The brief's
+  placement copies that module, never an earlier unit of the same feature.
+- **Nothing the base branch lacks.** Before a brief prescribes a construct (ports, adapters, a new base class, a new
+  layer or folder kind), run `git grep <construct> origin/<main-line>`. If the base branch does not have it, it stays
+  out of the brief unless the product owner approves it in writing.
 - One brief per task from [`templates/brief.md`](../../templates/brief.md), in `<tech-lead dir>/briefs/`, never
   under `/tmp`. Reference the PRD; never paraphrase it. Fill the language section from the env file's `LANG_ARTIFACTS`, `LANG_APP_COPY` and
   `APP_COPY_RULES`, and the "Team
   conventions" section from every entry of `conventions:` ("none" when the list is empty), and append
   [`team-conventions.md`](../../team-conventions.md). Check the file exists before `worker-start`.
+- Every brief, developer or review, lists by number the rules of the target repository's agent guide (its AGENTS.md
+  or CLAUDE.md) that the task must pass, and sets budgets: tests per endpoint or screen at the repository's existing
+  density, and a line cap per file and per unit. An acceptance row is not automatically a test. The worker stops and
+  asks before exceeding a budget.
 - Every product worker: `--worktree new-child --base-branch <target branch> --repo path:<repo path>
   --model "$MODEL_<SENIORITY>" --effort "$EFFORT_<SENIORITY>"`, with the repository's `REPO_<i>_PATH` and the
   seniority's keys from the env file (`MODEL_SENIOR`, `MODEL_MID`, `MODEL_JUNIOR` and their `EFFORT_*`), so it nests
