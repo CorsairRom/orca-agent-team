@@ -28,6 +28,7 @@ Every decision taken without asking. These become the product owner's test plan,
 
 - Freshness, before starting: `git fetch origin && git merge-base --is-ancestor origin/<main-line> HEAD`: <result>
 - `<command>`: <observed result>
+- Rule `<n>` of the target repository's agent guide, one line per rule the brief lists: pass · fail, `file:line`
 
 ## Changes
 
