@@ -433,8 +433,9 @@ With the example stack `acme`. Steps marked **HUMAN** need the human in the Orca
 
 1. Kill the tmux sessions `acme-pr-monitor` and `acme-worker-watch` ([stop and restart](../tools/README.md#stop-and-restart)).
 2. Close the chats: Ideas, the Tech-lead and any worker chat.
-3. Remove the Ideas, Tech-lead and worker worktrees with `orca worktree rm --force`, taking each path from
-   `orca worktree list`. It also deletes a branch it can prove is merged ([gotchas](./gotchas.md#orca-worktree-rm-also-deletes-the-branch)).
+3. Remove the Ideas, Tech-lead and worker worktrees with `orca worktree rm --force --delete-branch`, taking each
+   path from `orca worktree list`. `--delete-branch` deletes a local branch Orca can prove is merged and keeps any
+   other ([gotchas](./gotchas.md#orca-worktree-rm-keeps-the-branch)).
 4. Remove `~/.local/share/acme/`.
 5. Optionally, only to drop the memory: `engram delete project <memory.engram_project> --hard`. Small 0-observation
    projects named after worktrees may also exist ([gotchas](./gotchas.md#engram-may-create-small-projects-named-after-worktrees)).

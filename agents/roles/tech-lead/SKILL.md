@@ -189,8 +189,9 @@ OpenCode's worker agent ([providers](../../../docs/providers.md)) and dispatch a
   could not verify, and send it to Ideas for the product owner.
 - Update the hub's backlog (`<hub.backlog_file>`); you are its only writer.
 - When the feature is merged into the main line, check that every worktree of the feature is clean
-  (`git status --porcelain` empty, nothing unpushed) and remove them with `orca worktree rm --worktree <selector>`.
-  Remote branches stay. Report a worktree that is not clean; do not remove it. Release the feature's worker
+  (`git status --porcelain` empty, nothing unpushed) and remove them with
+  `orca worktree rm --worktree <selector> --delete-branch`, which deletes a merged local branch. Remote branches
+  stay. Report a worktree that is not clean; do not remove it. Release the feature's worker
   terminals.
 
 ## Memory you curate

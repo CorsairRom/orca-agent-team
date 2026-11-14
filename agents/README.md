@@ -328,8 +328,9 @@ orca orchestration worker-start \
   removed. It is updated on every open and every removal. By default it lives in Engram, topic
   `<inventory topic>` (project `<engram project>`); change it freely.
 - When a feature is merged into its main line, the tech lead checks that every worktree of the feature is clean
-  (`git status --porcelain` empty, nothing unpushed) and removes them with `orca worktree rm --worktree <selector>`.
-  Remote branches stay. A worktree that is not clean is reported, not removed.
+  (`git status --porcelain` empty, nothing unpushed) and removes them with
+  `orca worktree rm --worktree <selector> --delete-branch`, which deletes a merged local branch. Remote branches
+  stay. A worktree that is not clean is reported, not removed.
 - Scratch files live outside every repository and are deleted after use.
 
 ## Memory

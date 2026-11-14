@@ -198,11 +198,14 @@ The Bash tool runs the user's login shell, which may be zsh. Bash-only syntax (i
 
 **What to do:** write it inside `bash -c '...'`.
 
-### `orca worktree rm` also deletes the branch
+### `orca worktree rm` keeps the branch
 
-`orca worktree rm` tries to delete the worktree's checked-out local branch, with or without `--force`; `--force`
-forces the worktree removal, not the branch deletion. Orca keeps a branch that predated the worktree and any branch
-it cannot prove is merged (`orca worktree rm --help`). Remote branches stay on GitHub.
+Since Orca 1.4.246 `orca worktree rm` keeps the worktree's local branch, even with `--force`; `--force` forces the
+worktree removal, not a branch deletion. `--delete-branch` attempts a safe deletion, including a branch that
+predated the worktree, and keeps any branch whose changes Orca cannot prove are merged (`orca worktree rm --help`).
+Remote branches stay on GitHub.
+
+**What to do:** pass `--delete-branch` when the local branch should go with the worktree.
 
 ### Work-unit PRs may skip the repository's CI
 
