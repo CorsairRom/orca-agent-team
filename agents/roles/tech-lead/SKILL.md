@@ -138,8 +138,9 @@ orca orchestration worker-start \
   --task-title "<task>" --worktree path:<absolute worktree path> --agent opencode2 --json
 ```
 
-Whether `worktree create` records the new worktree as a child of yours is `(unverified)`; see `orca worktree create
---help`. Read its path from the JSON output.
+`worktree create` records the new worktree as a child of yours: "By default, Orca records the new worktree as a
+child of the caller context when it can infer one from the Orca terminal or current directory" (`orca worktree create
+--help`). Read its path from the JSON output.
 
 **A free tier runs out.** An OpenCode session on a free model stops with `provider.free-limit` ("Free usage limit
 reached. ... or switch models.") and falls back to no other model. The worker watch sends

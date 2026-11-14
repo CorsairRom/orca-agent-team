@@ -442,7 +442,8 @@ With the example stack `acme`. Steps marked **HUMAN** need the human in the Orca
 
 1. Kill the tmux sessions `acme-pr-monitor` and `acme-worker-watch` ([stop and restart](../tools/README.md#stop-and-restart)).
 2. Close the chats: Ideas, the Tech-lead and any worker chat.
-3. Remove the Ideas, Tech-lead and worker worktrees with `orca worktree rm --force --delete-branch`, taking each
+3. Remove the Ideas, Tech-lead and worker worktrees with
+   `orca worktree rm --worktree path:<path> --force --delete-branch`, taking each
    path from `orca worktree list`. `--delete-branch` deletes a local branch Orca can prove is merged and keeps any
    other ([gotchas](./gotchas.md#orca-worktree-rm-keeps-the-branch)).
 4. Remove `~/.local/share/acme/`.

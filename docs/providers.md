@@ -5,7 +5,8 @@ Antigravity or OpenCode v2, under the same Run, with the same `worker_done` and 
 when the team uses one, how each agent is set up, and how a new provider is accepted.
 
 Everything here is checked on Orca 1.4.245, Antigravity `agy` 1.4.2 and OpenCode 2.2.2. A point that is not is
-marked `(unverified)`. The gotchas behind each step are in [gotchas](./gotchas.md#other-providers).
+marked `(unverified)`. Points that name a later Orca version come from that version's `--help` and release notes;
+the smoke test has not been run again on Orca 1.4.258. The gotchas behind each step are in [gotchas](./gotchas.md#other-providers).
 
 ## When the team uses them
 
@@ -160,8 +161,9 @@ orca orchestration worker-start \
   --task-title "<title>" --worktree path:<worktree path> --agent opencode2 --json
 ```
 
-Read `<worktree path>` from the `--json` output of `worktree create`. Run it from the Tech-lead's chat; that the
-worktree then nests under the Tech-lead's is `(unverified)`.
+Read `<worktree path>` from the `--json` output of `worktree create`. Run it from the Tech-lead's chat, so the
+worktree nests under the Tech-lead's: Orca records it as a child of the caller when it can infer one from the Orca
+terminal or current directory (`orca worktree create --help`).
 
 ### OpenCode limits
 
@@ -216,4 +218,5 @@ The provider passes when all of these hold:
 
 Then add the provider to `providers:` and write the env file again. When it fails, keep it out of `providers:` and
 keep the exact error. Either way, release the worker with `orca orchestration worker-release --dispatch
-<dispatch-id>` and remove its worktree with `orca worktree rm`; `smoke.txt` is never committed.
+<dispatch-id>` and remove its worktree with `orca worktree rm --worktree path:<absolute worktree path>`;
+`smoke.txt` is never committed.

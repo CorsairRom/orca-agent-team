@@ -9,7 +9,9 @@ Two monitors that run beside the Tech-lead, and the env file they read:
 | [`worker-watch.sh`](./worker-watch.sh) | Reads Orca's observation of every live worker of the Tech-lead's Orca Run and tells the Tech-lead, once per prompt or error, when a worker waits on a prompt only a human can answer, stopped on a usage-limit error, or cannot be observed | In tmux, every 20 s by default |
 
 The monitors only read GitHub and Orca. They write to their own state directory and send to the mailbox of the
-Tech-lead's Orca Run. They never approve, merge or answer anything. Where they fit in the whole setup: the
+Tech-lead's Orca Run. They never approve, merge or answer anything, and never run `orca orchestration check`: Orca's
+orchestration skill forbids watch scripts because "a script's plain `check` takes your mail", and a script that only
+watches an inbox must use `--peek` (`orca orchestration check --help`). Where they fit in the whole setup: the
 [setup guide](../docs/setup-guide.md); restarting them after a reboot: [reboot procedure](../docs/reboot.md).
 
 ## Requirements
