@@ -36,8 +36,8 @@ new one only when the old one is unusable.
 
 Steps marked **HUMAN** need the human in the Orca UI.
 
-1. **HUMAN — start Orca** and check its three settings are unchanged: Chat UI on, "Agent sleep" off, "Agent
-   Dashboard" on.
+1. **HUMAN — start Orca** and check its [settings](./setup-guide.md#orca-settings) are unchanged: idle chat agents
+   stop "Never", "Agent sleep" off, "Agent Dashboard" on.
 2. **HUMAN — reopen the Ideas chat** in the hub's Ideas worktree, from Orca's agent session history, so it resumes
    the same Claude session. Then paste the content of `~/.local/share/acme/ideas/resume-prompt.txt` **in that same
    tab**.

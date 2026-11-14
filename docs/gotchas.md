@@ -99,12 +99,14 @@ Tech-lead are idle most of the time, waiting for mail.
 
 ### The Chat UI stops an idle chat
 
-Separately from "Agent sleep", Orca stops a chat's Claude process after it has been idle for a while; the
-30-minute limit, and that it is not configurable, are `(unverified)`. Anything running inside the chat's process
-ends with it. The chat's transcript, its Run and its run-id file survive `(unverified)`.
+Separately from "Agent sleep", Orca stops a chat's Claude process after it has been idle for a while. Since Orca
+1.4.249 a chat setting decides when idle chat agents stop: "Choose **Never** if you want idle chat agents to remain
+running" (release notes of 1.4.249). Anything running inside the chat's process ends with it. The chat's transcript,
+its Run and its run-id file survive `(unverified)`.
 
-**What to do:** nothing long-lived inside a chat. When a chat does not react to mail, the human sends its resume
-prompt in its existing tab ([reboot](./reboot.md#what-to-do)).
+**What to do:** set idle chat agents to stop **Never** ([Orca settings](./setup-guide.md#orca-settings)), and keep
+nothing long-lived inside a chat. When a chat does not react to mail, the human sends its resume prompt in its
+existing tab ([reboot](./reboot.md#what-to-do)).
 
 ### A chat relaunches with its saved effort
 

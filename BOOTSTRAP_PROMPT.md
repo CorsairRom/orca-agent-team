@@ -66,8 +66,9 @@ before installing anything.
 > **HUMAN — logins.** If `gh auth status` reports no login, ask the human to run `gh auth login` in a terminal. If
 > `claude` reports no login, ask the human to log in to Claude Code. Wait for both.
 
-> **HUMAN — Orca settings.** Ask the human to open the Orca app's settings and confirm three settings: Chat UI
-> **on**, "Agent sleep" **off**, "Agent Dashboard" **on**. Wait for their confirmation. Why:
+> **HUMAN — Orca settings.** Ask the human to open the Orca app's settings and confirm: idle chat agents stop
+> **Never**, "Agent sleep" **off**, "Agent Dashboard" **on**, and, on Orca 1.4.259 or later, coordinator approval of
+> worker permission prompts and Workspace Cleanup rules **off**. Wait for their confirmation. Why:
 > [`docs/setup-guide.md`](./docs/setup-guide.md#orca-settings).
 
 ## Step 2. The config

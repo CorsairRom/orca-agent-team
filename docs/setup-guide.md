@@ -19,7 +19,7 @@ The rules themselves live in the documents below, and those win where they say m
 | [`docs/providers.md`](./providers.md) | Optional workers on other agents, such as Antigravity or OpenCode v2 |
 | [`docs/reboot.md`](./reboot.md) | Reboot and reopen |
 
-Ideas and the Tech-lead are Claude Code sessions in Orca chats (Chat UI on), each the top-level coordinator of its
+Ideas and the Tech-lead are Claude Code sessions in Orca chats, each the top-level coordinator of its
 own Run, and they talk only through those Runs' mailboxes. The `orca` commands match `--help` on the minimum Orca
 version in the [README](../README.md#prerequisites); anything the help does not confirm is marked `(unverified)`.
 
@@ -69,14 +69,22 @@ more than a package manager:
 
 ### Orca settings
 
-The three settings the human sets in the Orca app; nothing sets them for you. The config records them as
+The settings the human sets in the Orca app; nothing sets them for you. The config records three of them as
 `orca.chat_ui`, `orca.agent_sleep` and `orca.agent_dashboard`.
 
-- **Chat UI on.** Ideas and the Tech-lead run as chats, and `orca agent launch --surface chat` opens a chat only
-  with this on.
+- **Chat UI.** Ideas and the Tech-lead run as chats. Since Orca 1.4.247 the Chat UI is out of Experimental and has
+  no switch to turn on: Settings → Chat UI picks which surface each agent opens, and
+  `orca agent launch --surface chat` opens a chat for that launch whatever it says (`orca agent launch --help`).
+- **Idle chat agents stop: "Never".** Ideas and the Tech-lead wait idle for mail, so Orca must not stop their
+  process ([gotchas](./gotchas.md#the-chat-ui-stops-an-idle-chat)). The setting exists since Orca 1.4.249; its exact
+  label and place are `(unverified)`.
 - **"Agent sleep" off.** Ideas and the Tech-lead wait idle for mail, and mail does not wake a slept agent
   `(unverified)` ([gotchas](./gotchas.md#agent-sleep-must-stay-off)).
 - **"Agent Dashboard" on**, for the human: it shows the agents that need input, such as pending permission prompts.
+- **On Orca 1.4.259 or later, two opt-ins stay off.** "Let coordinators approve worker permission prompts": here
+  only a person allows a worker's permission prompt. Workspace Cleanup rules for the team's repositories: they
+  remove released worker workspaces, while the tech lead removes a feature's worktrees only after checking they are
+  clean.
 
 ### Claude Code settings
 
