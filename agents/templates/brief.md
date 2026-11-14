@@ -96,7 +96,7 @@ and running other commands, such as `env`, `ps` or a `find` over the home direct
 - **Files you may read:** `<exact paths>`
 - **Files you may write:** `<exact paths, or "none" for an explore unit>`
 - **Commands you may run:** `<each exact command>`, and the `orca orchestration` commands of your dispatch
-  (heartbeat, `ask`, `worker_done`)
+  (`ask`, `worker_done`)
 - **Staging and committing:** <"forbidden: leave the change in the worktree; the tech lead commits it after
   review" · or "allowed: `git add <exact paths>`, then one `git commit` with a Conventional Commit message">
 - **Pushing and pull requests:** <"forbidden" · or "allowed: `git push origin <branch>`, no force; open the PR

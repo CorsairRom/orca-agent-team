@@ -285,8 +285,7 @@ orca orchestration worker-start \
   same worktree. Release a settled worker's terminal with
   `orca orchestration worker-release --dispatch <dispatch-id>` when the feature closes.
 - **Answering workers.** A question: `orca orchestration reply --id <msg-id> --body "$(cat <file>)"`. A note to a
-  live worker: `orca orchestration send --to dispatch:<dispatch-id> --subject "..." --body "$(cat <file>)"`. A
-  heartbeat is a sign of life only.
+  live worker: `orca orchestration send --to dispatch:<dispatch-id> --subject "..." --body "$(cat <file>)"`.
 - **Orca has no merge command:** `merge_ready` is only a message. Merges follow the configured
   [delivery](#delivery).
 - **Monitors.** Before the first PR of a feature, the PR monitor and the worker watch run in the tmux sessions

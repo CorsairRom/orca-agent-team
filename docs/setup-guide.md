@@ -367,9 +367,10 @@ Expected: the CLI answers with the message id. The file keeps the shell from exp
 
 ### Workers → Tech-lead
 
-Workers reach the Tech-lead only through its Run, with `worker_done`, `ask`, `escalation` and heartbeats. The
-Tech-lead answers a question with `orca orchestration reply --id <msg-id> --body "$(cat <file>)"`, sends a note with
-`orca orchestration send --to dispatch:<dispatch-id> ...`, and reads a heartbeat as a sign of life only. After
+Workers reach the Tech-lead only through its Run, with `worker_done`, `ask` and `escalation`; since Orca 1.4.246
+they send no heartbeats. The Tech-lead answers a question with
+`orca orchestration reply --id <msg-id> --body "$(cat <file>)"` and sends a note with
+`orca orchestration send --to dispatch:<dispatch-id> ...`. After
 `worker_done` the dispatch is complete; release its terminal with
 `orca orchestration worker-release --dispatch <dispatch-id>`.
 

@@ -1,7 +1,7 @@
 # Workers on other providers
 
 By default every worker is a Claude Code session. Orca can also start a supervised worker on another agent, such as
-Antigravity or OpenCode v2, under the same Run, with the same `worker_done`, `ask` and heartbeats. This page says
+Antigravity or OpenCode v2, under the same Run, with the same `worker_done` and `ask`. This page says
 when the team uses one, how each agent is set up, and how a new provider is accepted.
 
 Everything here is checked on Orca 1.4.245, Antigravity `agy` 1.4.2 and OpenCode 2.2.2. A point that is not is
@@ -188,14 +188,13 @@ The brief to dispatch:
 ```markdown
 # Brief — smoke test of <agent>
 
-This is a smoke test. Do only the four steps below, in order. Do not read any other file and do not run any
+This is a smoke test. Do only the three steps below, in order. Do not read any other file and do not run any
 other command. Do not commit, push or open a PR.
 
-1. Send one heartbeat to the Tech-lead with the heartbeat command of your task preamble.
-2. Read the first 30 lines of `<team repo>/agents/roles/dev-docs/SKILL.md`.
-3. Call the Engram MCP tool `mem_context` once, with `project: "<engram project>"`. Use the MCP tool; never the
+1. Read the first 30 lines of `<team repo>/agents/roles/dev-docs/SKILL.md`.
+2. Call the Engram MCP tool `mem_context` once, with `project: "<engram project>"`. Use the MCP tool; never the
    `engram` command line.
-4. Write `smoke.txt` at the root of your worktree:
+3. Write `smoke.txt` at the root of your worktree:
    - first line: the first heading of the card you read;
    - then the result of the `mem_context` call, or its exact error;
    - then your agent id and your model id.
@@ -206,7 +205,7 @@ three-sentence body.
 
 The provider passes when all of these hold:
 
-- a heartbeat and the `worker_done` arrive in the Tech-lead's Run;
+- the `worker_done` arrives in the Tech-lead's Run;
 - the worker watch ticks the dispatch: `worker-watch.ticks` in `<team dir>/monitors/` has a line for it
   ([logs and state](../tools/README.md#logs-and-state));
 - `smoke.txt` holds the card's heading, a `mem_context` result rather than an error, and the agent and model;
