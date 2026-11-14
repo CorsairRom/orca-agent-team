@@ -51,13 +51,15 @@ loses it without notice.
 **What to do:** keep long-lived processes out of the chats. The monitors run in tmux sessions; the mailbox needs no
 background command (see the first entry).
 
-### Nesting depth is 1
+### Workers may start their own workers
 
-A worker cannot start its own worker. The attempt is refused with `nested_worker_depth_exceeded`, and creating
-another Run does not reset the depth (the Orca orchestration skill). The full refusal text is `(unverified)`.
+Up to Orca 1.4.250 a worker could not start its own worker (nesting depth 1). Since 1.4.251 workers may, up to a
+nested depth of 4 by default, and profiles set to 1 move to 4 on upgrade (stablyai/orca PR #38348, "Let workers
+start their own workers by default (nested worker depth 4)").
 
-**What to do:** this is why the Tech-lead is not a worker of Ideas. Both are top-level coordinators with their own
-Runs, and they talk Run to Run.
+**What to do:** nothing changes for the team. The Tech-lead is still not a worker of Ideas: both are top-level
+coordinators with their own Runs, and they talk Run to Run. A worker starts no worker of its own: its brief lists
+the only `orca orchestration` commands it may run.
 
 ### A tmux session sends under the identity it was started with
 
@@ -79,12 +81,15 @@ one Run `(unverified)`.
 **What to do:** messages between Ideas and the Tech-lead go chat to chat, through their Runs, never through a
 worker.
 
-### A settled worker cannot be reused
+### A finished worker takes a follow-up through send
 
-After `worker_done` the dispatch is complete: `send --to dispatch:<settled id>` is refused with `dispatch_inactive`
-`(unverified)`.
+Since Orca 1.4.246, `send --to dispatch:<id>` reaches a worker in any state: "a finished or closed one gets it as a
+follow-up Task and reports with `worker_done`. The receipt says which" (`orca skills get orchestration --full`).
+Orca reopens the worker in its worktree with its saved conversation, or starts the same agent fresh with the
+earlier task and report as context (PR #36533). A finished worker on a paired server still refuses `send`.
 
-**What to do:** a follow-up needs a new `orca orchestration worker-start --worktree path:<absolute path> ...` on the
+**What to do:** send a follow-up to the worker that did the unit. When `send` is refused, or the follow-up needs
+another agent or model, start a new `orca orchestration worker-start --worktree path:<absolute path> ...` on the
 same worktree, without `--name`, `--repo` or `--base-branch`, which Orca refuses for an existing worktree
 (`orca orchestration worker-start --help`).
 

@@ -78,8 +78,9 @@ Product owner ── talks only to Ideas
 Shared memory: Engram, project <engram project>, read by every agent, written by Ideas and the tech lead
 ```
 
-The tech lead is not a worker of Ideas: Orca's nesting depth is 1, so a worker cannot start its own workers. Both
-are top-level coordinators, each with its own Run, and they talk Run to Run.
+The tech lead is not a worker of Ideas. Both are top-level coordinators, each with its own Run, and they talk Run
+to Run. Workers start no workers of their own, although Orca 1.4.251 and later allow it
+([gotchas](../docs/gotchas.md#workers-may-start-their-own-workers)).
 
 ## Quick path
 
@@ -279,10 +280,13 @@ orca orchestration worker-start \
   selects a repository by path, so its display name never matters. A worker started
   with `--worktree current` would share the tech lead's worktree.
 - **Corrections** to a unit (review fixes, contract amendments, PRD changes) go in that unit's existing worktree, on
-  the same branch: `worker-start --worktree path:<absolute path>` with no `--name`, `--repo` or `--base-branch`.
-  Never create a new worktree to correct a unit.
-- **After `worker_done`** the dispatch is settled and cannot be reused; a follow-up is a new `worker-start` on the
-  same worktree. Release a settled worker's terminal with
+  the same branch. Send them to the worker that did the unit, even after its `worker_done`:
+  `orca orchestration send --to dispatch:<dispatch-id> --subject "..." --body "$(cat <file>)"` reopens it as a
+  follow-up Task with its saved conversation ([gotchas](../docs/gotchas.md#a-finished-worker-takes-a-follow-up-through-send)).
+  When `send` is refused, or the correction needs another agent or model, use
+  `worker-start --worktree path:<absolute path>` with no `--name`, `--repo` or `--base-branch`. Never create a new
+  worktree to correct a unit.
+- **After `worker_done`** the Task is settled. Release a settled worker's terminal with
   `orca orchestration worker-release --dispatch <dispatch-id>` when the feature closes.
 - **Answering workers.** A question: `orca orchestration reply --id <msg-id> --body "$(cat <file>)"`. A note to a
   live worker: `orca orchestration send --to dispatch:<dispatch-id> --subject "..." --body "$(cat <file>)"`.

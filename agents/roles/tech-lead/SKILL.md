@@ -164,8 +164,10 @@ OpenCode's worker agent ([providers](../../../docs/providers.md)) and dispatch a
   it is the main branch, start the unit again from the fresh one), and answer. Workers never rebase it themselves.
 - A failed task is a decision for you, not a stop for the others.
 - One worktree per work unit, kept while the feature is open. Corrections go in that unit's existing worktree, on
-  the same branch, through a new dispatch with `--worktree path:<absolute path>`. Never create a new worktree to
-  correct a unit.
+  the same branch: as a follow-up `send --to dispatch:<dispatch-id>` to the worker that did the unit, or, when
+  `send` is refused or the correction needs another agent or model, through a new dispatch with
+  `--worktree path:<absolute path>` ([corrections](../../README.md#running-a-feature-in-orca)). Never create a new
+  worktree to correct a unit.
 - **PR monitor.** Running before the first PR of a feature, on every open PR you own or hand to the product owner,
   integration and hub PRs included ([`tools/README.md`](../../../tools/README.md)). Act on each note on your own
   (remove merged worktrees, fix and answer review comments, release terminals), then report to Ideas.

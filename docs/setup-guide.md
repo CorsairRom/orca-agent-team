@@ -44,9 +44,10 @@ product owner ── talks only to Ideas
 Shared memory: Engram, project memory.engram_project, read and written by every chat
 ```
 
-**Why two coordinators.** The Tech-lead cannot be a dispatched worker of Ideas: Orca's nesting depth is 1, and a
-worker that starts its own worker is refused ([gotchas](./gotchas.md#nesting-depth-is-1)). So both are top-level
-coordinators with their own Runs, and they talk Run to Run.
+**Why two coordinators.** The team was designed when Orca's nesting depth was 1, so the Tech-lead could not be a
+dispatched worker of Ideas. Orca 1.4.251 and later allow nested workers, and the team keeps the design: both are
+top-level coordinators with their own Runs, and they talk Run to Run
+([gotchas](./gotchas.md#workers-may-start-their-own-workers)).
 
 **Why a separate installing chat.** A Run is bound to the session that created it
 ([gotchas](./gotchas.md#a-run-is-bound-to-the-session-that-created-it)). The chat that installs the team launches
