@@ -43,8 +43,10 @@ may use yourself.
 
 ### Antigravity setup
 
-1. **HUMAN:** in Orca, sign in to Antigravity with a Google account. Orca's runtime has its own sign-in; an `agy`
-   login on the machine does not carry over.
+1. **HUMAN:** in Orca, sign in to Antigravity with a Google account, before the first Antigravity chat. Orca's
+   runtime has its own sign-in; an `agy` login on the machine does not carry over. Without it, since Orca 1.4.254,
+   a new Antigravity chat may run on the machine's own `agy acp` instead, when `agy` itself is signed in
+   ([gotchas](./gotchas.md#orca-runs-its-own-antigravity-runtime)); that chat does not read the MCP file of step 3.
 2. **HUMAN:** check Orca's permission setting for Antigravity. Its default is full access: nothing stops a write
    or a command. The brief is then the only limit, so it lists the exact files and commands allowed.
 3. Give the runtime the Engram MCP server. Orca runs it with `GEMINI_HOME=<orca config>/antigravity-chat`, and it

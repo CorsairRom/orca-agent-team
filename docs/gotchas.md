@@ -235,9 +235,19 @@ config references, or in a secret store ([credentials](./setup-guide.md#credenti
 ### Orca runs its own Antigravity runtime
 
 For `--agent antigravity`, Orca runs its own Antigravity chat runtime, with its own Google sign-in, separate from
-the `agy` CLI. An `agy` login does not sign it in.
+the `agy` CLI. An `agy` login does not sign it in. Two changes since Orca 1.4.245:
 
-**What to do:** sign in once in Orca, a HUMAN step ([Antigravity setup](./providers.md#antigravity-setup)).
+- Since 1.4.254 a new Antigravity chat runs on the machine's own `agy acp`, with `agy`'s home `~/.gemini`, when
+  nobody is signed in to Orca's Antigravity and `agy` itself is signed in (stablyai/orca PRs #39006 and #39452).
+  Users already signed in to Orca's Antigravity are never moved.
+- Since 1.4.252 an Antigravity worker that runs the `agy` CLI in a terminal fails at once with
+  `Agent startup blocked: agent-sign-in-prompt` when `agy` is signed out (PR #38901).
+
+Which of the two runtimes a `worker-start --agent antigravity` gets on Orca 1.4.258 is `(unverified)`.
+
+**What to do:** sign in once in Orca before the first Antigravity chat, a HUMAN step
+([Antigravity setup](./providers.md#antigravity-setup)). A worker that fails with `agent-sign-in-prompt` needs
+`agy` itself signed in on the machine.
 
 ### Antigravity reads MCP servers from Orca's runtime home
 
