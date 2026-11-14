@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Every N seconds, checks each live supervised worker of a Run for a prompt only a human can answer, or a stop on a usage-limit error, and tells the Tech-lead once per prompt or error, in the mailbox of its Orca Run. It never approves anything.
-# It reads Orca's observation.agentWait (worker-show --json); when Orca did not observe the worker, it falls back to worker-read --source auto, and it logs a worker it cannot observe at all.
+# It reads Orca's observation.agentWait (worker-show --json --full); when Orca did not observe the worker, it falls back to worker-read --source auto, and it logs a worker it cannot observe at all.
 # On every tick it also reads each worker's newest rows (worker-read --source auto) for a usage-limit error.
 # Usage: worker-watch.sh [<run_id> [interval_seconds]]   watch until killed (run it in tmux)
 #        worker-watch.sh --once [<run_id>]                one tick printed to stdout; sends and records nothing
@@ -121,11 +121,12 @@ notify_once() {
 tick() {
   local run="$1"
   [ -z "$run" ] && { tick_line "no-run-id"; return; }
-  "$ORCA" orchestration worker-list --run "$run" --json 2>/dev/null \
+  # --full: since Orca 1.4.246 --json alone prints a concise view without dispatchStatus or observation.agentWait.
+  "$ORCA" orchestration worker-list --run "$run" --json --full 2>/dev/null \
     | jq -r '(.result.workers // .result.dispatches // .result) | .[] | select(.dispatchStatus == "dispatched") | .dispatchId' \
     | while read -r ctx; do
         [ -z "$ctx" ] && continue
-        obs="$("$ORCA" orchestration worker-show --dispatch "$ctx" --json 2>/dev/null | jq -c '.result.observation // {}' 2>/dev/null)"
+        obs="$("$ORCA" orchestration worker-show --dispatch "$ctx" --json --full 2>/dev/null | jq -c '.result.observation // {}' 2>/dev/null)"
         if [ -n "$obs" ] && jq -e 'has("agentWait")' <<<"$obs" >/dev/null; then
           wait="$(jq -c '.agentWait' <<<"$obs")"
           if [ "$wait" = null ]; then

@@ -285,9 +285,11 @@ poll with every change: `NEW <repo>#<n> <state> -> <base>`, `state A->B`, `ready
 | `WATCH_LIMIT_PATTERNS` | none | Newline-separated extended regexes of usage-limit errors, matched case-insensitively and added to the defaults below |
 | `ORCA_BIN` | `orca`, else `orca-ide` | Orca CLI |
 
-Every tick it lists the Run's workers (`orca orchestration worker-list --run <run_id> --json`, status
+Every tick it lists the Run's workers (`orca orchestration worker-list --run <run_id> --json --full`, status
 `dispatched`) and reads Orca's own observation of each one, `.result.observation.agentWait` of
-`orca orchestration worker-show --dispatch <dispatch-id> --json`. `worker-show --help` defines it: a value names a
+`orca orchestration worker-show --dispatch <dispatch-id> --json --full`. Both need `--full`: since Orca 1.4.246
+`--json` alone prints a concise view with neither `dispatchStatus` nor `observation`, and the watch would then see no
+worker and report nothing. `worker-show --help` defines `agentWait`: a value names a
 worker parked on a prompt only a human can answer, with the evidence; `null` means Orca looked and found no wait;
 an absent field means Orca did not look, which never means the worker is not waiting. The shape of a non-null value
 is `(unverified)`; the watch passes it on as compact JSON.
