@@ -238,13 +238,17 @@ orca orchestration inbox --limit 100 --json | jq -c --arg tl "run:$(cat "$TECH_L
 On Orca 1.4.246 `inbox` lists the messages under `.result.messages`, newest first, and holds the mail of every Run on
 the Orca. Each message carries `id`, `type`, `from`, `to` (`run:<run id>`), `subject`, `handled` and `body`. The query
 takes the newest alive check sent to the Tech-lead's Run and the newest `[Tech-lead] ready` sent to Ideas' Run, so
-another team's mail does not show.
+another team's mail does not show. With `--full` each row is Orca's stored record instead (observed on 1.4.258):
+`from_handle` and `to_handle` in place of `from` and `to`, `read` in place of `handled`, and `payload` as a JSON
+string, among other fields.
 
-Expected: one line each, with the same `from`. Another sender
-means the sessions carry another chat's identity: the Tech-lead starts them again with the start lines above. A send
-refused with `no_active_sender_terminal` means the session has no live Orca identity at all `(unverified)`. Whether a
-Tech-lead identity still sends after the Chat UI's idle sweep has stopped its process is `(unverified)`; the
-Tech-lead's checklist restarts the monitors on every resume, and the alive check tells.
+Expected: one line each, with the same `from`. For a chat it is `orca_session_id:<its ORCA_AGENT_SESSION_ID>`, which
+`echo "$ORCA_AGENT_SESSION_ID"` prints in the Tech-lead's chat (observed on Orca 1.4.258). Another sender means the
+sessions carry another identity, such as the `ORCA_TERMINAL_HANDLE` of whoever started the tmux server: the
+Tech-lead starts them again with the start lines above. A send refused with `no_active_sender_terminal` ("Could not
+determine the calling terminal for this orchestration command. …") means the session has no `ORCA_*` variable at
+all. Whether a Tech-lead identity still sends after the Chat UI's idle sweep has stopped its process is
+`(unverified)`; the Tech-lead's checklist restarts the monitors on every resume, and the alive check tells.
 
 ## Reference
 
@@ -304,12 +308,22 @@ keeps the cursor of the last page it read, because the cursor after the newest p
   by hand.
 
 It does not look for permission prompts or for workers that stopped without `worker_done`: Orca sends the
-coordinator its own `escalation` for both, one with an `approval` for a prompt only a person can allow, one with a
-`stopReason` for a stop (`exited` or `lost` means the worker is gone). The Tech-lead handles them as its
-[Run section](../agents/roles/tech-lead/SKILL.md#run) says. Orca does not tell the Run that a worker stopped on a
-usage limit `(unverified)`; that, and a worker `worker-read` cannot read, are what this watch still reports. An
-agent that dies while its terminal stays open may raise no escalation, and this watch sees it only when the terminal
-shows a usage-limit line.
+coordinator its own `escalation` for both, with a `stopReason` in its payload; the first two values below were
+observed on Orca 1.4.258:
+
+- `finished`: the worker ended its turn without `worker_done` (subject "Worker stopped without reporting"). The
+  Dispatch is still open, and the body ends with the worker's last output and a `worker-read` line.
+- `needs-input`, with an `approval`: a prompt only a person can allow (subject "Worker is waiting for permission").
+  Once it is answered, Orca sends a `status` "Worker approval answered" with the decision; a deny reason goes to the
+  worker as a message.
+- `exited` or `lost`: the worker is gone (`orca skills get orchestration --full`).
+
+The Tech-lead handles them as its [Run section](../agents/roles/tech-lead/SKILL.md#run) says. A usage-limit stop
+was not seen in that check: since a stop without `worker_done` raises the `finished` escalation with the last
+output, a worker stopped on a usage limit probably arrives that way, with the error in its last output
+`(unverified)`. This watch still reports usage-limit errors, with the matched line, and a worker `worker-read`
+cannot read. An agent that dies while its terminal stays open may raise no escalation, and this watch sees it only
+when the terminal shows a usage-limit line.
 
 The watch only sees workers that are alive at a tick. A worker that starts and finishes between two ticks is never
 ticked, and needs no watch: its `worker_done` or Orca's escalation reaches the Tech-lead.

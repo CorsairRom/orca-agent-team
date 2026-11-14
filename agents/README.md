@@ -212,11 +212,12 @@ run-id file. They talk only through those Runs. The steps that set this up are t
 [Ideas'](./templates/after-start-ideas.md) and the [tech lead's](./templates/after-start-tech-lead.md).
 
 - **Create the Run from the coordinator's own chat**, never from a subagent or another chat. A Run is bound to the
-  session that created it; another session cannot read its mailbox or dispatch under it
+  session that created it; another session's `check` on it is refused until that session takes the Run over
   ([gotchas](../docs/gotchas.md#a-run-is-bound-to-the-session-that-created-it)).
   `orca orchestration run-current --json` shows the bound Run (the id is at `.result.runId`, `null` or missing when there is none);
   `orca orchestration run-create --objective "<objective>" --json` creates one, and its id goes alone on one line
-  into the run-id file.
+  into the run-id file. On a RESUME, a chat no longer bound to the Run of its run-id file takes it back with
+  `orca orchestration run-use --id "$(cat <run-id file>)" --json`, and creates a new one only when that is refused.
 - **Receive** by [the mailbox rule](#the-mailbox-rule) below.
 - **Send** by writing the body to a file in the sender's durable folder first, then:
   `orca orchestration send --to "run:$(cat <peer run-id file>)" --type status --subject "<prefix> <subject>" --body "$(cat <file>)"`.
@@ -282,7 +283,8 @@ orca orchestration worker-start \
 - **Corrections** to a unit (review fixes, contract amendments, PRD changes) go in that unit's existing worktree, on
   the same branch. Send them to the worker that did the unit, even after its `worker_done`:
   `orca orchestration send --to dispatch:<dispatch-id> --subject "..." --body "$(cat <file>)"` reopens it as a
-  follow-up Task with its saved conversation ([gotchas](../docs/gotchas.md#a-finished-worker-takes-a-follow-up-through-send)).
+  follow-up Task with its saved conversation, under a new dispatch id that later mail goes to
+  ([gotchas](../docs/gotchas.md#a-finished-worker-takes-a-follow-up-through-send)).
   When `send` is refused, or the correction needs another agent or model, use
   `worker-start --worktree path:<absolute path>` with no `--name`, `--repo` or `--base-branch`. Never create a new
   worktree to correct a unit.

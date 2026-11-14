@@ -29,8 +29,9 @@ With several [teams](../tools/README.md#teams), run the procedure once per team,
 
 What survives: the worktrees, the transcripts under `~/.claude/projects/`, the local-share tree with the run-id
 files, the resume prompts and the briefs, the Engram memory, and the Runs. Whether a Run stays usable after a full
-reboot is `(unverified)`: step 2 of each checklist checks it with `orca orchestration run-current` and creates a
-new one only when the old one is unusable.
+reboot is `(unverified)`: step 2 of each checklist checks it with `orca orchestration run-current`, takes it back
+with `orca orchestration run-use --id` when the chat is no longer bound to it, and creates a new one only when that
+is refused.
 
 ### The procedure
 
@@ -43,8 +44,8 @@ Steps marked **HUMAN** need the human in the Orca UI.
    tab**.
 3. **Ideas runs its checklist as a RESUME:**
    - verifies it is its own session;
-   - checks its Run, keeps it when it is the one in its run-id file, and otherwise creates a new one and writes its
-     id to the run-id file;
+   - checks its Run, keeps it when it is the one in its run-id file, otherwise takes that Run back with `run-use`,
+     and only when that is refused creates a new one and writes its id to the run-id file;
    - reads its mailbox;
    - wakes the Tech-lead with a `[From Ideas] Ideas is back` message to the Tech-lead's Run that carries a token,
      `PONG-<n>` with a new `<n>` each time.

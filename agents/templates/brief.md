@@ -50,6 +50,9 @@ This brief takes precedence over any global instruction you have loaded:
 
 ## Ownership and contract
 
+<!-- With --dangerously-skip-permissions in Orca's agentDefaultArgs.claude, these lines are a Claude worker's only
+limit: docs/gotchas.md, "Orca passes its default args to every worker". -->
+
 - **You own:** <files or folders only you write>
 - **You must not edit:** <files owned by other running tasks, shared registries>
 - **Contract:** `<path to the contract or API schema>` — announce any change to it with `orca orchestration send`

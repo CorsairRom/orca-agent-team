@@ -73,7 +73,8 @@ Run your checklist, [`templates/after-start-ideas.md`](../../templates/after-sta
 - **First start:** create your Run from this chat, write its id to `<ideas run-id file>`, and wait for the tech
   lead's handshake: its first message to your Run. Answer it.
 - **Resume** (after a reboot or a reopen): the same checklist checks your Run with
-  `orca orchestration run-current --json`, and creates a new one only if the old one is unusable. The full procedure
+  `orca orchestration run-current --json`, takes the Run of your run-id file back with `orca orchestration run-use`
+  when this chat is not bound to it, and creates a new one only when that is refused. The full procedure
   is in [`docs/reboot.md`](../../../docs/reboot.md).
 
 ## Memory

@@ -33,14 +33,25 @@ empty, as [the mailbox rule](../agents/README.md#the-mailbox-rule) says.
 
 ### A Run is bound to the session that created it
 
-A Run is bound to the session that created it; another session cannot read its mailbox or dispatch under it.
-`run-create` creates and binds a Run, and `run-current` shows the Run bound to the calling coordinator
-(`orca orchestration run-create --help`, `run-current --help`); that another session is refused is `(unverified)`. A
-subagent's shell inherits its parent's identity, so a subagent that runs `run-create` creates a Run of its parent
-`(unverified)`.
+A Run is bound to one coordinator session at a time: `run-create` creates a Run and binds it to the calling session,
+and `run-current` shows the Run bound to the calling coordinator (`orca orchestration run-create --help`,
+`run-current --help`). Observed on Orca 1.4.258:
+
+- another session's `check --run <run_id>` is refused with `consumer_fenced` ("This caller is not bound to Run…");
+- any session that is not a worker can take the Run over with `orca orchestration run-use --id <run_id>` ("Resume
+  coordinating a Run"; a worker "cannot bind its own or ancestor Run", `run-use --help`). The Run's coordinator
+  moves to the caller and its `consumer_generation` goes up; the previous coordinator's `run-current` returns
+  `null`, its `check` is refused the same way, and it can take the Run back with `run-use` in turn;
+- `orca orchestration inbox --terminal run:<run_id>` reads a Run's mail from any session.
+
+Whether a session that is not bound can still dispatch under the Run is `(unverified)`. A subagent's shell inherits
+its parent's identity, so a subagent that runs `run-create` creates a Run of its parent `(unverified)`.
 
 **What to do:** each coordinator creates its own Run from its own chat, in the first turn of its after-start
-checklist, and writes the id to its run-id file. The chat that installs the team creates no Run for them.
+checklist, and writes the id to its run-id file. On a RESUME, a chat whose `run-current` shows no Run or another
+one takes back the Run of its run-id file with `run-use --id` before it creates a new one, so the workers and peers
+still mailing that Run keep reaching it. Run `run-use` only on the chat's own Run: it fences the session that held
+it. The chat that installs the team creates no Run for them.
 
 ### Long background commands end with the Bash tool's limit
 
@@ -63,10 +74,17 @@ the only `orca orchestration` commands it may run.
 
 ### A tmux session sends under the identity it was started with
 
-`orca orchestration send` takes its sender from the `ORCA_*` variables of its environment `(unverified)`. A
-process in a new tmux session starts from the server's global environment, which tmux copies from whoever started
-the server: another chat, or no Orca process at all (`man tmux`, "GLOBAL AND SESSION ENVIRONMENT"). A monitor in
-such a session sends as that other chat, or is refused with `no_active_sender_terminal` `(unverified)`.
+`orca orchestration send` takes its sender from the `ORCA_*` variables of its environment. A process in a new tmux
+session starts from the server's global environment, which tmux copies from whoever started the server: another
+chat, or no Orca process at all (`man tmux`, "GLOBAL AND SESSION ENVIRONMENT"). Observed on Orca 1.4.258:
+
+- a session started with a chat's `ORCA_*` variables, through `tmux new-session -e`, sends as that chat:
+  `orca_session_id:<the chat's ORCA_AGENT_SESSION_ID>`;
+- a session started without them, on a tmux server another Orca terminal started, sends as that terminal: its
+  `ORCA_TERMINAL_HANDLE`;
+- with no `ORCA_*` variable at all, `send` is refused with `no_active_sender_terminal`: "Could not determine the
+  calling terminal for this orchestration command. Pass --from with your own terminal's handle — another pane's
+  handle would act on its mailbox — or run the command inside a live Orca terminal with ORCA_TERMINAL_HANDLE set."
 
 **What to do:** the Tech-lead, a long-lived chat, starts the monitors and passes every `ORCA_*` variable of its own
 environment with `tmux new-session -e` ([start lines](../tools/README.md#start)); the alive check's sender must be
@@ -88,7 +106,13 @@ follow-up Task and reports with `worker_done`. The receipt says which" (`orca sk
 Orca reopens the worker in its worktree with its saved conversation, or starts the same agent fresh with the
 earlier task and report as context (PR #36533). A finished worker on a paired server still refuses `send`.
 
-**What to do:** send a follow-up to the worker that did the unit. When `send` is refused, or the follow-up needs
+Observed on Orca 1.4.258: the full receipt (`send ... --json --full`) holds `"delivery":"follow_up"` when the
+worker was still live, or `"delivery":"reopened"` when it was already released, with `"followUpOf":"<old dispatch
+id>"` and a new `taskId` and `dispatchId`. Later mail to the worker goes to the new dispatch id. A reopened Claude
+worker resumed the same session on the same model and sent `worker_done` again.
+
+**What to do:** send a follow-up to the worker that did the unit, and from then on use the new `dispatchId` of the
+receipt for it. When `send` is refused, or the follow-up needs
 another agent or model, start a new `orca orchestration worker-start --worktree path:<absolute path> ...` on the
 same worktree, without `--name`, `--repo` or `--base-branch`, which Orca refuses for an existing worktree
 (`orca orchestration worker-start --help`).
@@ -155,6 +179,18 @@ history may be refused on resume `(unverified)`; then follow the "History refuse
 terminal"), over whatever the human is typing there `(unverified)`.
 
 **What to do:** coordinators and workers talk only through Run mailboxes.
+
+### Orca passes its default args to every worker
+
+Orca passes an agent's default args, its setting `agentDefaultArgs.<agent>`, on the command line of every worker of
+that agent. Observed on Orca 1.4.258 with `--dangerously-skip-permissions` in the `claude` entry: Claude workers
+never prompted, a write into `.git/` and a `touch` outside the worktree both ran, and no `approval` escalation
+reached the coordinator. Whether that value is Orca's default or a user's choice is not known.
+
+**What to do:** HUMAN: before a feature, check the value of `agentDefaultArgs.claude` in Orca's settings (where the
+settings screen shows it is `(unverified)`). While it holds `--dangerously-skip-permissions`, no prompt stops a
+Claude worker and none reaches the Tech-lead: the brief is its only limit, so write its ownership lines exactly
+([brief template](../agents/templates/brief.md)).
 
 ## Shell and commands
 
@@ -224,8 +260,8 @@ Some repositories run their CI only on PRs into their main branch. With the defa
 ## Other providers
 
 Workers on agents other than Claude Code ([providers](./providers.md)). These entries hold on Orca 1.4.245,
-Antigravity `agy` 1.4.2 and OpenCode 2.2.2, hold on those versions; re-check them after an upgrade of any of the
-three.
+Antigravity `agy` 1.4.2 and OpenCode 2.2.2, except where an entry names a later version; re-check them after an
+upgrade of any of the three.
 
 ### Every worker inherits Orca's environment
 
@@ -281,12 +317,20 @@ loose brief the model reads unrelated files and runs exploratory commands such a
 
 ### Orca cannot pass a model to OpenCode v2
 
-`worker-start --agent opencode2 --model <id>` is refused: the agent "does not support launch-time model selection".
-`--effort` is not supported either.
+`worker-start --agent opencode2 --model <id>` is refused with `invalid_argument`: "Agent opencode2 does not support
+launch-time model selection. Omit --model…". `--effort` is not supported either.
+
+The agent id `opencode` takes a model: "OpenCode model selection requires an existing worktree, a verified
+execution-host CLI, and an available model; effort is unsupported" (`orca orchestration worker-start --help`). On
+Orca 1.4.258, `worker-start --agent opencode --model <id> --worktree path:<existing worktree>` was accepted and ran
+`opencode acp` on that model, for the session and every message, and left OpenCode's saved model list unchanged.
+That run used OpenCode 2.3.0, on which `opencode` and `opencode2` ran the same binary; the rest of this section was
+checked on 2.2.2.
 
 **What to do:** create the worktree first with `orca worktree create ... --setup skip --json`, then start the
 worker with `--worktree path:<path> --agent opencode2` and no `--model`
-([OpenCode start line](./providers.md#start-an-opencode-worker)).
+([OpenCode start line](./providers.md#start-an-opencode-worker)). To set the model at launch instead, start it on
+the same worktree with `--agent opencode --model <id>`.
 
 ### OpenCode ignores a default agent that is not primary
 
@@ -299,9 +343,12 @@ subagent is ignored, and OpenCode falls back to `build` without a word.
 ### OpenCode starts on the most recent model
 
 The OpenCode TUI starts on the most recent model, from its state file `model.json` (the `recent` list), not on the
-agent's `model`.
+agent's `model`. Whether an `opencode2` worker does too is `(unverified)`: in the check on Orca 1.4.258 with
+OpenCode 2.3.0, the agent's model and the most recent one were the same. A worker started with
+`--agent opencode --model <id>` runs on `<id>` ([above](#orca-cannot-pass-a-model-to-opencode-v2)).
 
-**What to do:** HUMAN: open OpenCode and pick the intended model once.
+**What to do:** HUMAN: open OpenCode and pick the intended model once, or start the worker with
+`--agent opencode --model <id>`.
 
 ### OpenCode has no model fallback
 

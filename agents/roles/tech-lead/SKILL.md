@@ -28,7 +28,9 @@ Run your checklist, [`templates/after-start-tech-lead.md`](../../templates/after
 - **First start:** create your Run from this chat, write its id to `<tech-lead run-id file>`, send Ideas the
   handshake, and record its confirmation.
 - **Resume** (after a reboot or a reopen): the same checklist checks your Run with
-  `orca orchestration run-current --json`, creates a new one only if the old one is unusable, checks the monitors
+  `orca orchestration run-current --json`, takes back the Run of your run-id file with
+  `orca orchestration run-use --id` when this chat is no longer bound to it, creates a new one only when that is
+  refused, checks the monitors
   are running, and reconciles the inventory with what is alive. The full procedure is in
   [`docs/reboot.md`](../../../docs/reboot.md).
 - Replace your Run only with no live or pending dispatches
@@ -142,6 +144,11 @@ orca orchestration worker-start \
 child of the caller context when it can infer one from the Orca terminal or current directory" (`orca worktree create
 --help`). Read its path from the JSON output.
 
+To set the OpenCode model at launch instead, start the worker on the same existing worktree with
+`--agent opencode --model <model id>` and no `--effort`. This was observed on Orca 1.4.258 with OpenCode 2.3.0
+([providers](../../../docs/providers.md#start-an-opencode-worker)); the `opencode2` line above stays the team's
+default.
+
 **A free tier runs out.** An OpenCode session on a free model stops with `provider.free-limit` ("Free usage limit
 reached. ... or switch models.") and falls back to no other model. The worker watch sends
 `[Worker watch] <dispatch-id> stopped on a usage limit: ...` for it, and for the usage-limit errors of other providers;
@@ -154,13 +161,17 @@ OpenCode's worker agent ([providers](../../../docs/providers.md)) and dispatch a
 - Process every `worker_done`, `question` and `escalation`. Answer what you can; send product decisions to Ideas
   and let the developer continue meanwhile. Orca itself sends two kinds of `escalation`
   (`orca skills get orchestration --full`, "When Orca wakes you"):
-  - with a `stopReason`: the worker stopped without `worker_done`. Steer it with `send`, or stop and retry it on
-    the same worktree; `exited` or `lost` means it is gone, so retry it or report it to Ideas.
-  - with an `approval`: a permission prompt of the worker that only a person can allow. Report it to Ideas at once,
-    with the exact prompt and your read on whether it is safe, instead of waiting silently. Never allow it yourself;
-    deny it only when it holds up the task:
-    `orca orchestration deny --dispatch <dispatch-id> --prompt <approval-id> --reason "<why>"`, with the approval id
-    the escalation names.
+  - with a `stopReason` of `finished`, subject "Worker stopped without reporting": the worker ended its turn
+    without `worker_done`; the Dispatch is still open, and the body ends with its last output and a `worker-read`
+    line. Steer it with `send`, or stop and retry it on the same worktree. `exited` or `lost` means it is gone, so
+    retry it or report it to Ideas.
+  - with an `approval` (`stopReason` `needs-input`, subject "Worker is waiting for permission"): a permission
+    prompt of the worker that only a person can allow. Report it to Ideas at once, with the exact prompt and your
+    read on whether it is safe, instead of waiting silently. Never allow it yourself; deny it only when it holds up
+    the task: `orca orchestration deny --dispatch <dispatch-id> --prompt <approval-id> --reason "<why>"`, with the
+    `approvalId` of the escalation's `approval`. The reason reaches the worker as a separate message; the worker
+    carries on. Once the prompt is answered, by you or a person, Orca sends a `status` "Worker approval answered"
+    with the decision.
 - A worker that asks because its base is behind the main line: fetch, bring `<target branch>` up to date (or, when
   it is the main branch, start the unit again from the fresh one), and answer. Workers never rebase it themselves.
 - A failed task is a decision for you, not a stop for the others.

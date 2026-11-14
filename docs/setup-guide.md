@@ -82,6 +82,9 @@ The settings the human sets in the Orca app; nothing sets them for you. The conf
 - **"Agent sleep" off.** Ideas and the Tech-lead wait idle for mail, and mail does not wake a slept agent
   `(unverified)` ([gotchas](./gotchas.md#agent-sleep-must-stay-off)).
 - **"Agent Dashboard" on**, for the human: it shows the agents that need input, such as pending permission prompts.
+- **The agent default args are known.** Orca passes them to every worker; when Claude's hold
+  `--dangerously-skip-permissions`, Claude workers never prompt and the brief is the only limit
+  ([gotchas](./gotchas.md#orca-passes-its-default-args-to-every-worker)).
 - **On Orca 1.4.259 or later, two opt-ins stay off.** "Let coordinators approve worker permission prompts": here
   only a person allows a worker's permission prompt. Workspace Cleanup rules for the team's repositories: they
   remove released worker workspaces, while the tech lead removes a feature's worktrees only after checking they are
@@ -259,8 +262,11 @@ orca orchestration run-create --objective "<objective>" --json
 orca orchestration run-current --json | jq -r '.result.runId' > <ideas dir>/run-id.txt   # or <tech-lead dir>/run-id.txt
 ```
 
-The first line checks for a Run already bound to this chat (empty when none: `.result.runId` is missing or `null`);
-the chat creates one only when there is none or the old one is unusable. Expected: the run-id file holds only the id,
+The first line checks for a Run already bound to this chat (empty when none: `.result.runId` is missing or `null`).
+On a RESUME, when it shows none or another id and the run-id file holds one, the chat first takes that Run back
+with `orca orchestration run-use --id "$(cat <run-id file>)" --json`, so the workers and peers still mailing it keep
+reaching the chat, and creates one only when that is refused
+([gotchas](./gotchas.md#a-run-is-bound-to-the-session-that-created-it)). Expected: the run-id file holds only the id,
 on one line. On Orca 1.4.246 `run-current --json` returns `{"ok":true,"result":{"runId":"run_…","objective":"…"}}`.
 
 ### Workers
