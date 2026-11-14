@@ -129,7 +129,7 @@ orca:
 monitors:
   # Seconds between two polls of the PR monitor.
   pr_interval_seconds: 300
-  # Seconds between two ticks of the worker permission watch.
+  # Seconds between two ticks of the worker watch.
   watch_interval_seconds: 20
   # gh pr list --author filter: "@me" is the account gh is logged in with.
   pr_author: "@me"

@@ -130,8 +130,8 @@ and Orca passes neither a model nor an effort to it.
    }
    ```
 
-   The rule for `"*"` is the stack's choice; a rule set to `ask` parks the worker on a prompt, which the
-   [worker watch](../tools/README.md) reports `(unverified)`.
+   The rule for `"*"` is the stack's choice; a rule set to `ask` parks the worker on a prompt, which Orca escalates
+   to the Tech-lead with an `approval` `(unverified)` ([Tech-lead, Run](../agents/roles/tech-lead/SKILL.md#run)).
 
 2. **The permission order.** The last matching rule wins, in config order. So the `ask` rules for a force push
    come after `"git push *": "allow"`, and `git rebase *` and `git reset --hard *` stay `ask`. These patterns do

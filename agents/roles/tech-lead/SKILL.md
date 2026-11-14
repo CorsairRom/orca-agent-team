@@ -157,7 +157,7 @@ OpenCode's worker agent ([providers](../../../docs/providers.md)) and dispatch a
   - with a `stopReason`: the worker stopped without `worker_done`. Steer it with `send`, or stop and retry it on
     the same worktree; `exited` or `lost` means it is gone, so retry it or report it to Ideas.
   - with an `approval`: a permission prompt of the worker that only a person can allow. Report it to Ideas at once,
-    with the exact prompt and your read on whether it is safe, as for a worker watch wait. Never allow it yourself;
+    with the exact prompt and your read on whether it is safe, instead of waiting silently. Never allow it yourself;
     deny it only when it holds up the task:
     `orca orchestration deny --dispatch <dispatch-id> --prompt <approval-id> --reason "<why>"`, with the approval id
     the escalation names.
@@ -172,9 +172,10 @@ OpenCode's worker agent ([providers](../../../docs/providers.md)) and dispatch a
 - **PR monitor.** Running before the first PR of a feature, on every open PR you own or hand to the product owner,
   integration and hub PRs included ([`tools/README.md`](../../../tools/README.md)). Act on each note on your own
   (remove merged worktrees, fix and answer review comments, release terminals), then report to Ideas.
-- **Worker watch.** It reports the Run's live workers that wait on a prompt only a human can answer, those stopped on
-  a usage-limit error, and those it cannot observe. Report each wait to Ideas at once, with the exact prompt and your read on whether it is safe,
-  instead of waiting silently; read an unobservable worker by hand with the `worker-read` line it sends.
+- **Worker watch.** It reports the Run's live workers stopped on a usage-limit error, and those it cannot read.
+  Permission prompts and stops without `worker_done` are not its job: they come as Orca's `escalation` messages
+  (above). Handle a usage limit as in [providers](#providers); read an unobservable worker by hand with the
+  `worker-read` line it sends.
 - **Inventory:** your Run, every worktree, subagent worktree, worker terminal, tmux session, container, database
   and test-data path you open, with where it lives, why, and when it is removed. Update it on every open and every
   removal. By default it is the Engram topic `<inventory topic>` (project `<engram project>`).

@@ -297,7 +297,7 @@ If a launch reports a terminal instead of a chat, stop: the team needs chats; te
 
 ## Step 7. Check the monitors
 
-The PR monitor and the permission watch run in the tmux sessions `<tmux prefix>-pr-monitor` and
+The PR monitor and the worker watch run in the tmux sessions `<tmux prefix>-pr-monitor` and
 `<tmux prefix>-worker-watch`, and post to the Tech-lead's Run mailbox. The Tech-lead started them in its first turn
 (its checklist step 4), not you: a monitor sends under the Orca identity of the chat that started it, and you are
 closed after the install ([gotchas](./docs/gotchas.md#a-tmux-session-sends-under-the-identity-it-was-started-with)).

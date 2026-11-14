@@ -27,7 +27,7 @@ product owner ── talks only to Ideas
          └─ Tech-lead (chat, hub worktree "Tech-lead") ── its own standing Run
               ├─ workers, one per work unit (worker-start --worktree new-child)
               ├─ PR monitor        → the Tech-lead's Run mailbox
-              └─ permission watch  → the Tech-lead's Run mailbox
+              └─ worker watch      → the Tech-lead's Run mailbox
 Shared memory: one Engram project, read and written by both chats
 ```
 
@@ -143,7 +143,7 @@ the monitors from its own chat ([start lines](./tools/README.md#start)). A new r
 | [`agents/team-conventions.md`](./agents/team-conventions.md) | Rules for everything an agent writes |
 | [`agents/roles/`](./agents/roles/) | One card per role |
 | [`agents/templates/`](./agents/templates/) | PRD, brief, worker report, test plan, and the after-start checklists of [Ideas](./agents/templates/after-start-ideas.md) and the [Tech-lead](./agents/templates/after-start-tech-lead.md) |
-| [`tools/`](./tools/README.md) | The env file, the PR monitor and the permission watch |
+| [`tools/`](./tools/README.md) | The env file, the PR monitor and the worker watch |
 | [`docs/setup-guide.md`](./docs/setup-guide.md) | The setup guide, step by step, with the reasons |
 | [`docs/reboot.md`](./docs/reboot.md) | What to do after a reboot or when a chat is reopened |
 | [`docs/gotchas.md`](./docs/gotchas.md) | Known gotchas of Orca and Claude Code in this setup |

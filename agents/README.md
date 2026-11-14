@@ -13,7 +13,7 @@ talk, how workers are dispatched, and the rules for review, QA, memory and clean
 | [`../docs/setup-guide.md`](../docs/setup-guide.md) | Building the whole setup on a machine |
 | [`../docs/reboot.md`](../docs/reboot.md) | What to do after a reboot or a chat reopen |
 | [`../docs/gotchas.md`](../docs/gotchas.md) | Orca and Claude Code behaviours that break the workflow if ignored |
-| [`../tools/README.md`](../tools/README.md) | The PR monitor and the worker permission watch |
+| [`../tools/README.md`](../tools/README.md) | The PR monitor and the worker watch |
 | [`../config/stack.example.yaml`](../config/stack.example.yaml) | The stack's configuration: repositories, hub layout, delivery, conventions, memory, languages, models, providers, Orca settings |
 
 ## Placeholders
@@ -74,7 +74,7 @@ Product owner ── talks only to Ideas
                ├─ its own standing Run, reused across features, id in <tech-lead run-id file>
                │    └─ workers: one Orca worker and one worktree per work unit (worker-start --worktree new-child)
                ├─ PR monitor    → PR changes to the tech lead's Run mailbox
-               └─ worker watch  → pending permission prompts to the tech lead's Run mailbox
+               └─ worker watch  → usage-limit stops and unreadable workers to the tech lead's Run mailbox
 Shared memory: Engram, project <engram project>, read by every agent, written by Ideas and the tech lead
 ```
 
@@ -295,9 +295,10 @@ orca orchestration worker-start \
 - **Monitors.** Before the first PR of a feature, the PR monitor and the worker watch run in the tmux sessions
   `<tmux prefix>-pr-monitor` and `<tmux prefix>-worker-watch` and post to the tech lead's Run mailbox, as
   [`tools/README.md`](../tools/README.md) describes. The PR monitor covers every open PR the tech lead owns or hands
-  to the product owner. The worker watch reports a worker waiting on a prompt only a human can answer once per prompt,
-  and a worker it cannot observe; the tech lead reports each wait to Ideas at once, with the exact prompt and its
-  read on whether it is safe, instead of waiting silently.
+  to the product owner. The worker watch reports, once each, a worker stopped on a usage-limit error and a worker it
+  cannot read. Permission prompts and stops without `worker_done` arrive as Orca's own `escalation` messages; the
+  tech lead reports each permission prompt to Ideas at once, with the exact prompt and its read on whether it is
+  safe, instead of waiting silently ([tech lead, Run](./roles/tech-lead/SKILL.md#run)).
 
 ## Rules that keep the work moving
 

@@ -57,7 +57,7 @@ Steps marked **HUMAN** need the human in the Orca UI.
    - verifies its identity and checks its Run, as Ideas did; the monitors read the run-id file on every send, so a
      new Run needs no restart;
    - reads its mailbox;
-   - restarts the PR monitor and the permission watch from its own chat, as
+   - restarts the PR monitor and the worker watch from its own chat, as
      [`tools/README.md`](../tools/README.md#start) describes; expected: `tmux ls` lists both, and an alive check
      with the Tech-lead's own sender arrives in its mailbox;
    - reconciles its inventory with what is alive (below);

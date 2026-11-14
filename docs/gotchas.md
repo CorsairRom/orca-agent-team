@@ -176,10 +176,10 @@ A file under `/tmp` is gone after a reboot; a worker whose brief was there recei
 ### A worker that ends between two ticks is not watched
 
 The [worker watch](../tools/README.md) ticks only the
-workers alive at a tick (every 20 s by default). That is enough: a worker parked on a prompt stays alive, so a
-later tick sees it. A worker that finishes inside one interval has no tick line, and that is expected. On the
-minimum Orca version, `worker-show` gives no `agentWait` field for a running worker, so the `worker-read` fallback
-is the path that runs; whether `agentWait` appears for a parked worker is `(unverified)`.
+workers alive at a tick (every 20 s by default). A worker that finishes inside one interval has no tick line, and
+that is expected: its `worker_done`, or Orca's own `escalation` when it stopped without one, reaches the Tech-lead.
+The watch no longer looks for permission prompts either: Orca escalates a prompt only a person can allow with an
+`approval` ([Tech-lead, Run](../agents/roles/tech-lead/SKILL.md#run)).
 
 ### Engram may create small projects named after worktrees
 

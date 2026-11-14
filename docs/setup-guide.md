@@ -13,7 +13,7 @@ The rules themselves live in the documents below, and those win where they say m
 | [`agents/team-conventions.md`](../agents/team-conventions.md) | Rules for everything an agent writes |
 | [`agents/roles/`](../agents/roles/) | One card per role: [Ideas](../agents/roles/ideas/SKILL.md), the [Tech-lead](../agents/roles/tech-lead/SKILL.md), the [reviewer](../agents/roles/reviewer/SKILL.md), [QA](../agents/roles/qa/SKILL.md) and one developer card per repository kind |
 | [`agents/templates/`](../agents/templates/) | PRD, brief, worker report, test plan, and the after-start checklists of [Ideas](../agents/templates/after-start-ideas.md) and the [Tech-lead](../agents/templates/after-start-tech-lead.md) |
-| [`tools/README.md`](../tools/README.md) | The env file, the PR monitor and the permission watch |
+| [`tools/README.md`](../tools/README.md) | The env file, the PR monitor and the worker watch |
 | [`docs/delivery-model.md`](./delivery-model.md) | The default workflow: integration branches, work-unit PRs, who merges |
 | [`docs/gotchas.md`](./gotchas.md) | Known gotchas |
 | [`docs/providers.md`](./providers.md) | Optional workers on other agents, such as Antigravity or OpenCode v2 |
@@ -40,7 +40,7 @@ product owner ── talks only to Ideas
                ├─ its own standing Run, reused across features, id in <tech-lead dir>/run-id.txt:
                │    workers started with worker-start --worktree new-child, one worktree per work unit
                ├─ tmux: PR monitor        → PR changes to the Tech-lead's Run mailbox
-               └─ tmux: permission watch  → pending permission prompts to the Tech-lead's Run mailbox
+               └─ tmux: worker watch      → usage-limit stops and unreadable workers to the Tech-lead's Run mailbox
 Shared memory: Engram, project memory.engram_project, read and written by every chat
 ```
 
@@ -303,8 +303,9 @@ The Tech-lead's two long-lived scripts run in detached tmux sessions, so they su
 
 - the **PR monitor** polls `gh` for every repository of the config and sends one `[PR monitor] ...` message per
   poll with every change (new PR, state, review, comments);
-- the **permission watch** reads Orca's observation of each worker, looks for workers parked on a prompt only a
-  human can answer, and sends `[Worker watch] ...`, also for a worker it cannot observe.
+- the **worker watch** reads the newest rows of each live worker and sends `[Worker watch] ...` for a worker
+  stopped on a usage-limit error, or one it cannot read. Permission prompts and stops without `worker_done` reach
+  the Tech-lead as Orca's own `escalation` messages ([Tech-lead, Run](../agents/roles/tech-lead/SKILL.md#run)).
 
 Both send to the Tech-lead's Run, reading its id from the run-id file on every send, so a new Run needs no restart.
 The Tech-lead starts them from its own chat, on its first start and on every resume, so they send under its Orca
