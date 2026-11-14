@@ -151,7 +151,15 @@ OpenCode's worker agent ([providers](../../../docs/providers.md)) and dispatch a
 ## Run
 
 - Process every `worker_done`, `question` and `escalation`. Answer what you can; send product decisions to Ideas
-  and let the developer continue meanwhile.
+  and let the developer continue meanwhile. Orca itself sends two kinds of `escalation`
+  (`orca skills get orchestration --full`, "When Orca wakes you"):
+  - with a `stopReason`: the worker stopped without `worker_done`. Steer it with `send`, or stop and retry it on
+    the same worktree; `exited` or `lost` means it is gone, so retry it or report it to Ideas.
+  - with an `approval`: a permission prompt of the worker that only a person can allow. Report it to Ideas at once,
+    with the exact prompt and your read on whether it is safe, as for a worker watch wait. Never allow it yourself;
+    deny it only when it holds up the task:
+    `orca orchestration deny --dispatch <dispatch-id> --prompt <approval-id> --reason "<why>"`, with the approval id
+    the escalation names.
 - A worker that asks because its base is behind the main line: fetch, bring `<target branch>` up to date (or, when
   it is the main branch, start the unit again from the fresh one), and answer. Workers never rebase it themselves.
 - A failed task is a decision for you, not a stop for the others.

@@ -10,10 +10,14 @@ re-check them after an upgrade. A point no `--help` text, `man` page or the Orca
 ### Orca prompts an idle chat when its Run gets mail
 
 When mail arrives in a Run, Orca injects a prompt into the idle chat bound to that Run. An idle chat with no
-background command wakes on it; the chat needs no process of its own to wake up. Whether the prompt also reaches a
-chat that the Chat UI's idle sweep has closed is `(unverified)`.
+background command wakes on it; the chat needs no process of its own to wake up. Since Orca 1.4.248 a Chat UI chat
+gets each message whole as its own prompt, marked read once the chat accepts it, so a later `check` does not return
+it; a terminal agent, or a message too large for a chat message, still gets a prompt that names a `check` command
+(`orca skills get orchestration --full`, "When Orca wakes you"). Whether the prompt also reaches a chat that the
+Chat UI's idle sweep has closed is `(unverified)`.
 
-**What to do:** follow [the mailbox rule](../agents/README.md#the-mailbox-rule), which quotes the prompt.
+**What to do:** follow [the mailbox rule](../agents/README.md#the-mailbox-rule): act on a message the prompt holds,
+and run `check` only when the prompt names it.
 
 ### A plain check marks its batch handled
 

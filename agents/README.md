@@ -231,19 +231,24 @@ run-id file. They talk only through those Runs. The steps that set this up are t
 
 This is the only copy of the rule; every other file links here.
 
-When new mail arrives in a Run, Orca injects a prompt into the idle chat bound to that Run: "You have N
-orchestration message(s). Run `orca orchestration check --run <run-id>`." An idle chat with no background command
-wakes on it ([gotchas](../docs/gotchas.md#orca-prompts-an-idle-chat-when-its-run-gets-mail)). Whether the prompt
-also reaches a chat that the Chat UI idle sweep has closed is `(unverified)`.
+When new mail arrives in a Run, Orca injects a prompt into the idle chat bound to that Run, and an idle chat with no
+background command wakes on it ([gotchas](../docs/gotchas.md#orca-prompts-an-idle-chat-when-its-run-gets-mail)).
+In a Chat UI chat, such as Ideas and the tech lead, the prompt is the message itself, whole, and Orca marks it read
+once the chat accepts it. A terminal agent, or a message too large for a chat message, gets a prompt that names a
+`check` command instead. Whether the prompt also reaches a chat that the Chat UI idle sweep has closed is
+`(unverified)`.
 
-On that prompt, and whenever the chat starts or resumes:
-
-1. `orca orchestration check --run <own run id> --json`;
-2. read EVERY message of the batch it returns, heartbeats included;
-3. act on each;
-4. repeat from 1 until `.result.messages` is empty. Optionally confirm with
-   `orca orchestration check --run <own run id> --peek --json`, which returns only unread messages without
-   marking them.
+- **A prompt that holds a message:** read it whole and act on it. A later `check` does not return it.
+- **A prompt that names `check`, and whenever the chat starts or resumes:**
+  1. `orca orchestration check --run <own run id> --json`;
+  2. read EVERY message of the batch it returns;
+  3. act on each;
+  4. repeat from 1 until `.result.messages` is empty. Optionally confirm with
+     `orca orchestration check --run <own run id> --peek --json`, which returns only unread messages without
+     marking them.
+- **Lost track** (after a compaction, a crash, or a `check` whose output was lost):
+  `orca orchestration inbox --terminal run:<own run id> --limit 50 --full` lists the mail already handled, newest
+  first. A lost `check` response comes back whole with the `--retry-request <id>` that `check` printed.
 
 No flag is needed to acknowledge: on Orca 1.4.246 a plain `check` returns the Run's oldest unread batch and marks it
 handled ([gotchas](../docs/gotchas.md#a-plain-check-marks-its-batch-handled)). `<own run id>` is
