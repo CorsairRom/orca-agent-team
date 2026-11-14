@@ -240,5 +240,5 @@ The provider passes when all of these hold:
 
 Then add the provider to `providers:` and write the env file again. When it fails, keep it out of `providers:` and
 keep the exact error. Either way, release the worker with `orca orchestration worker-release --dispatch
-<dispatch-id>` and remove its worktree with `orca worktree rm --worktree path:<absolute worktree path>`;
+<dispatch-id>` and remove its worktree with `orca worktree rm --worktree path:<absolute worktree path> --delete-branch`;
 `smoke.txt` is never committed.

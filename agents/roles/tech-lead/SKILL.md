@@ -160,7 +160,8 @@ OpenCode's worker agent ([providers](../../../docs/providers.md)) and dispatch a
 
 - Process every `worker_done`, `question` and `escalation`. Answer what you can; send product decisions to Ideas
   and let the developer continue meanwhile. Orca itself sends two kinds of `escalation`
-  (`orca skills get orchestration --full`, "When Orca wakes you"):
+  (`orca skills get orchestration --full`, "When Orca wakes you"; the subjects and `stopReason` values below were
+  observed on Orca 1.4.258, not quoted from the skill):
   - with a `stopReason` of `finished`, subject "Worker stopped without reporting": the worker ended its turn
     without `worker_done`; the Dispatch is still open, and the body ends with its last output and a `worker-read`
     line. Steer it with `send`, or stop and retry it on the same worktree. `exited` or `lost` means it is gone, so
@@ -169,8 +170,8 @@ OpenCode's worker agent ([providers](../../../docs/providers.md)) and dispatch a
     prompt of the worker that only a person can allow. Report it to Ideas at once, with the exact prompt and your
     read on whether it is safe, instead of waiting silently. Never allow it yourself; deny it only when it holds up
     the task: `orca orchestration deny --dispatch <dispatch-id> --prompt <approval-id> --reason "<why>"`, with the
-    `approvalId` of the escalation's `approval`. The reason reaches the worker as a separate message; the worker
-    carries on. Once the prompt is answered, by you or a person, Orca sends a `status` "Worker approval answered"
+    `approvalId` of the escalation's `approval`. Orca's reply says the reason is sent to the worker as a message;
+    the worker carries on. Once the prompt is answered, by you or a person, Orca sends a `status` "Worker approval answered"
     with the decision.
 - A worker that asks because its base is behind the main line: fetch, bring `<target branch>` up to date (or, when
   it is the main branch, start the unit again from the fresh one), and answer. Workers never rebase it themselves.

@@ -73,8 +73,9 @@ more than a package manager:
 The settings the human sets in the Orca app; nothing sets them for you. The config records three of them as
 `orca.chat_ui`, `orca.agent_sleep` and `orca.agent_dashboard`.
 
-- **Chat UI.** Ideas and the Tech-lead run as chats. Since Orca 1.4.247 the Chat UI is out of Experimental and has
-  no switch to turn on: Settings → Chat UI picks which surface each agent opens, and
+- **Chat UI.** Ideas and the Tech-lead run as chats. Since Orca 1.4.246 the Chat UI is out of Experimental and has
+  no switch to turn on: a Chat or CLI choice per agent in the settings picks which surface each agent opens
+  (Settings → Agents; the 1.4.247 notes also name Settings → Chat UI), and
   `orca agent launch --surface chat` opens a chat for that launch whatever it says (`orca agent launch --help`).
 - **Idle chat agents stop: "Never".** Ideas and the Tech-lead wait idle for mail, so Orca must not stop their
   process ([gotchas](./gotchas.md#the-chat-ui-stops-an-idle-chat)). The setting exists since Orca 1.4.249; its exact
