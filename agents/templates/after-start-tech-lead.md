@@ -41,7 +41,17 @@ Shell variables do not survive between Bash calls, so load it in each block. It 
    ```
 
    - The id shown is the one in the run-id file: keep it.
-   - It is empty (`.result.runId` is missing or `null`), or another id, or the command refuses this caller: create one and store its id, only the id, on
+   - It is empty (`.result.runId` is missing or `null`), or another id, or the command refuses this caller, and the
+     run-id file holds an id: take that Run back first, so the workers, the monitors and Ideas still mailing it keep
+     reaching this chat (`run-use --help`: "Resume coordinating a Run"):
+
+     ```bash
+     . <env file>
+     orca orchestration run-use --id "$(cat "$TECH_LEAD_RUN_ID_FILE")" --json
+     ```
+
+     Expected: `"ok":true`, and `.result.run.id` is the id of the run-id file: keep it.
+   - The run-id file is missing or empty, or `run-use` is refused: create one and store its id, only the id, on
      one line. On a RESUME, first check the old Run for live or pending dispatches
      (`orca orchestration worker-list --run <old run id> --json`): their mail keeps going to the old Run, so list
      them in step 6.

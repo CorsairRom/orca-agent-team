@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# Every N seconds, checks each live supervised worker of a Run for a prompt only a human can answer, or a stop on a usage-limit error, and tells the Tech-lead once per prompt or error, in the mailbox of its Orca Run. It never approves anything.
-# It reads Orca's observation.agentWait (worker-show --json); when Orca did not observe the worker, it falls back to worker-read --source auto, and it logs a worker it cannot observe at all.
-# On every tick it also reads each worker's newest rows (worker-read --source auto) for a usage-limit error.
+# Every N seconds, checks each live supervised worker of a Run for a stop on a usage-limit error, and tells the Tech-lead once per error, in the mailbox of its Orca Run. It never approves anything.
+# On every tick it reads each worker's newest rows (worker-read --source auto), and it reports once a worker it cannot read at all.
+# Permission prompts and stops without worker_done are not its job: Orca sends the coordinator its own escalation messages for them.
 # Usage: worker-watch.sh [<run_id> [interval_seconds]]   watch until killed (run it in tmux)
 #        worker-watch.sh --once [<run_id>]                one tick printed to stdout; sends and records nothing
 #        worker-watch.sh --help                           print this help and exit
@@ -103,7 +103,7 @@ limit_match() {
 limit_check() {
   local ctx="$1" line
   line="$(limit_match <"$STATE/worker-watch.tail.$ctx")"
-  [ -n "$line" ] || return 0
+  [ -n "$line" ] || { tick_line "$ctx no-limit"; return 0; }
   line="$(printf '%s' "$line" | sed 's/^[[:space:]]*//')"; line="${line:0:200}"
   tick_line "$ctx limit-HIT"
   notify_once "limit $ctx $line" "[worker watch] $ctx stopped on a usage limit: $line"
@@ -121,36 +121,17 @@ notify_once() {
 tick() {
   local run="$1"
   [ -z "$run" ] && { tick_line "no-run-id"; return; }
-  "$ORCA" orchestration worker-list --run "$run" --json 2>/dev/null \
+  # --full: since Orca 1.4.246 --json alone prints a concise view without dispatchStatus.
+  "$ORCA" orchestration worker-list --run "$run" --json --full 2>/dev/null \
     | jq -r '(.result.workers // .result.dispatches // .result) | .[] | select(.dispatchStatus == "dispatched") | .dispatchId' \
     | while read -r ctx; do
         [ -z "$ctx" ] && continue
-        obs="$("$ORCA" orchestration worker-show --dispatch "$ctx" --json 2>/dev/null | jq -c '.result.observation // {}' 2>/dev/null)"
-        if [ -n "$obs" ] && jq -e 'has("agentWait")' <<<"$obs" >/dev/null; then
-          wait="$(jq -c '.agentWait' <<<"$obs")"
-          if [ "$wait" = null ]; then
-            tick_line "$ctx no-wait"
-          else
-            tick_line "$ctx wait-PENDING"
-            notify_once "$ctx $wait" "[worker watch] $ctx is WAITING on a prompt only a human can answer: ${wait:0:400}"
-          fi
-          if read_new "$ctx"; then limit_check "$ctx"; fi
-          continue
-        fi
         if ! read_new "$ctx"; then
           tick_line "$ctx unobservable"
-          notify_once "unobservable $ctx" "[worker watch] $ctx cannot be observed (no agentWait, worker-read failed); read it with: orca orchestration worker-read --dispatch $ctx --source auto"
+          notify_once "unobservable $ctx" "[worker watch] $ctx cannot be observed (worker-read failed); read it with: orca orchestration worker-read --dispatch $ctx --source auto"
           continue
         fi
         limit_check "$ctx"
-        out="$(cat "$STATE/worker-watch.tail.$ctx")"
-        last_allow=$(printf '%s\n' "$out" | grep -n '^\[system\] Allow' | tail -1 | cut -d: -f1)
-        if [ -z "$last_allow" ]; then tick_line "$ctx no-allow"; continue; fi
-        after=$(printf '%s\n' "$out" | tail -n +"$((last_allow+1))")
-        if printf '%s\n' "$after" | grep -qE '^(resolved|denied|\[assistant\]|\[tool result\])'; then tick_line "$ctx allow-resolved"; continue; fi
-        tick_line "$ctx allow-PENDING"
-        cmd=$(printf '%s\n' "$after" | grep -m1 '"command"' | cut -c1-400)
-        notify_once "$ctx $cmd" "[worker watch] $ctx is WAITING on a permission prompt ($(printf '%s\n' "$out" | sed -n "${last_allow}p")): $cmd"
       done
 }
 

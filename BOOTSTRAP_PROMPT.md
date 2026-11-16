@@ -66,8 +66,9 @@ before installing anything.
 > **HUMAN — logins.** If `gh auth status` reports no login, ask the human to run `gh auth login` in a terminal. If
 > `claude` reports no login, ask the human to log in to Claude Code. Wait for both.
 
-> **HUMAN — Orca settings.** Ask the human to open the Orca app's settings and confirm three settings: Chat UI
-> **on**, "Agent sleep" **off**, "Agent Dashboard" **on**. Wait for their confirmation. Why:
+> **HUMAN — Orca settings.** Ask the human to open the Orca app's settings and confirm: idle chat agents stop
+> **Never**, "Agent sleep" **off**, "Agent Dashboard" **on**, and, on Orca 1.4.259 or later, coordinator approval of
+> worker permission prompts and Workspace Cleanup rules **off**. Wait for their confirmation. Why:
 > [`docs/setup-guide.md`](./docs/setup-guide.md#orca-settings).
 
 ## Step 2. The config
@@ -296,7 +297,7 @@ If a launch reports a terminal instead of a chat, stop: the team needs chats; te
 
 ## Step 7. Check the monitors
 
-The PR monitor and the permission watch run in the tmux sessions `<tmux prefix>-pr-monitor` and
+The PR monitor and the worker watch run in the tmux sessions `<tmux prefix>-pr-monitor` and
 `<tmux prefix>-worker-watch`, and post to the Tech-lead's Run mailbox. The Tech-lead started them in its first turn
 (its checklist step 4), not you: a monitor sends under the Orca identity of the chat that started it, and you are
 closed after the install ([gotchas](./docs/gotchas.md#a-tmux-session-sends-under-the-identity-it-was-started-with)).

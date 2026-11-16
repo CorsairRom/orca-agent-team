@@ -13,13 +13,13 @@ The rules themselves live in the documents below, and those win where they say m
 | [`agents/team-conventions.md`](../agents/team-conventions.md) | Rules for everything an agent writes |
 | [`agents/roles/`](../agents/roles/) | One card per role: [Ideas](../agents/roles/ideas/SKILL.md), the [Tech-lead](../agents/roles/tech-lead/SKILL.md), the [reviewer](../agents/roles/reviewer/SKILL.md), [QA](../agents/roles/qa/SKILL.md) and one developer card per repository kind |
 | [`agents/templates/`](../agents/templates/) | PRD, brief, worker report, test plan, and the after-start checklists of [Ideas](../agents/templates/after-start-ideas.md) and the [Tech-lead](../agents/templates/after-start-tech-lead.md) |
-| [`tools/README.md`](../tools/README.md) | The env file, the PR monitor and the permission watch |
+| [`tools/README.md`](../tools/README.md) | The env file, the PR monitor and the worker watch |
 | [`docs/delivery-model.md`](./delivery-model.md) | The default workflow: integration branches, work-unit PRs, who merges |
 | [`docs/gotchas.md`](./gotchas.md) | Known gotchas |
 | [`docs/providers.md`](./providers.md) | Optional workers on other agents, such as Antigravity or OpenCode v2 |
 | [`docs/reboot.md`](./reboot.md) | Reboot and reopen |
 
-Ideas and the Tech-lead are Claude Code sessions in Orca chats (Chat UI on), each the top-level coordinator of its
+Ideas and the Tech-lead are Claude Code sessions in Orca chats, each the top-level coordinator of its
 own Run, and they talk only through those Runs' mailboxes. The `orca` commands match `--help` on the minimum Orca
 version in the [README](../README.md#prerequisites); anything the help does not confirm is marked `(unverified)`.
 
@@ -40,13 +40,14 @@ product owner ── talks only to Ideas
                ├─ its own standing Run, reused across features, id in <tech-lead dir>/run-id.txt:
                │    workers started with worker-start --worktree new-child, one worktree per work unit
                ├─ tmux: PR monitor        → PR changes to the Tech-lead's Run mailbox
-               └─ tmux: permission watch  → pending permission prompts to the Tech-lead's Run mailbox
+               └─ tmux: worker watch      → usage-limit stops and unreadable workers to the Tech-lead's Run mailbox
 Shared memory: Engram, project memory.engram_project, read and written by every chat
 ```
 
-**Why two coordinators.** The Tech-lead cannot be a dispatched worker of Ideas: Orca's nesting depth is 1, and a
-worker that starts its own worker is refused ([gotchas](./gotchas.md#nesting-depth-is-1)). So both are top-level
-coordinators with their own Runs, and they talk Run to Run.
+**Why two coordinators.** The team was designed when Orca's nesting depth was 1, so the Tech-lead could not be a
+dispatched worker of Ideas. Orca 1.4.251 and later allow nested workers, and the team keeps the design: both are
+top-level coordinators with their own Runs, and they talk Run to Run
+([gotchas](./gotchas.md#workers-may-start-their-own-workers)).
 
 **Why a separate installing chat.** A Run is bound to the session that created it
 ([gotchas](./gotchas.md#a-run-is-bound-to-the-session-that-created-it)). The chat that installs the team launches
@@ -69,14 +70,26 @@ more than a package manager:
 
 ### Orca settings
 
-The three settings the human sets in the Orca app; nothing sets them for you. The config records them as
+The settings the human sets in the Orca app; nothing sets them for you. The config records three of them as
 `orca.chat_ui`, `orca.agent_sleep` and `orca.agent_dashboard`.
 
-- **Chat UI on.** Ideas and the Tech-lead run as chats, and `orca agent launch --surface chat` opens a chat only
-  with this on.
+- **Chat UI.** Ideas and the Tech-lead run as chats. Since Orca 1.4.246 the Chat UI is out of Experimental and has
+  no switch to turn on: a Chat or CLI choice per agent in the settings picks which surface each agent opens
+  (Settings → Agents; the 1.4.247 notes also name Settings → Chat UI), and
+  `orca agent launch --surface chat` opens a chat for that launch whatever it says (`orca agent launch --help`).
+- **Idle chat agents stop: "Never".** Ideas and the Tech-lead wait idle for mail, so Orca must not stop their
+  process ([gotchas](./gotchas.md#the-chat-ui-stops-an-idle-chat)). The setting exists since Orca 1.4.249; its exact
+  label and place are `(unverified)`.
 - **"Agent sleep" off.** Ideas and the Tech-lead wait idle for mail, and mail does not wake a slept agent
   `(unverified)` ([gotchas](./gotchas.md#agent-sleep-must-stay-off)).
 - **"Agent Dashboard" on**, for the human: it shows the agents that need input, such as pending permission prompts.
+- **The agent default args are known.** Orca passes them to every worker; when Claude's hold
+  `--dangerously-skip-permissions`, Claude workers never prompt and the brief is the only limit
+  ([gotchas](./gotchas.md#orca-passes-its-default-args-to-every-worker)).
+- **On Orca 1.4.259 or later, two opt-ins stay off.** "Let coordinators approve worker permission prompts": here
+  only a person allows a worker's permission prompt. Workspace Cleanup rules for the team's repositories: they
+  remove released worker workspaces, while the tech lead removes a feature's worktrees only after checking they are
+  clean.
 
 ### Claude Code settings
 
@@ -250,8 +263,11 @@ orca orchestration run-create --objective "<objective>" --json
 orca orchestration run-current --json | jq -r '.result.runId' > <ideas dir>/run-id.txt   # or <tech-lead dir>/run-id.txt
 ```
 
-The first line checks for a Run already bound to this chat (empty when none: `.result.runId` is missing or `null`);
-the chat creates one only when there is none or the old one is unusable. Expected: the run-id file holds only the id,
+The first line checks for a Run already bound to this chat (empty when none: `.result.runId` is missing or `null`).
+On a RESUME, when it shows none or another id and the run-id file holds one, the chat first takes that Run back
+with `orca orchestration run-use --id "$(cat <run-id file>)" --json`, so the workers and peers still mailing it keep
+reaching the chat, and creates one only when that is refused
+([gotchas](./gotchas.md#a-run-is-bound-to-the-session-that-created-it)). Expected: the run-id file holds only the id,
 on one line. On Orca 1.4.246 `run-current --json` returns `{"ok":true,"result":{"runId":"run_…","objective":"…"}}`.
 
 ### Workers
@@ -294,8 +310,9 @@ The Tech-lead's two long-lived scripts run in detached tmux sessions, so they su
 
 - the **PR monitor** polls `gh` for every repository of the config and sends one `[PR monitor] ...` message per
   poll with every change (new PR, state, review, comments);
-- the **permission watch** reads Orca's observation of each worker, looks for workers parked on a prompt only a
-  human can answer, and sends `[Worker watch] ...`, also for a worker it cannot observe.
+- the **worker watch** reads the newest rows of each live worker and sends `[Worker watch] ...` for a worker
+  stopped on a usage-limit error, or one it cannot read. Permission prompts and stops without `worker_done` reach
+  the Tech-lead as Orca's own `escalation` messages ([Tech-lead, Run](../agents/roles/tech-lead/SKILL.md#run)).
 
 Both send to the Tech-lead's Run, reading its id from the run-id file on every send, so a new Run needs no restart.
 The Tech-lead starts them from its own chat, on its first start and on every resume, so they send under its Orca
@@ -367,9 +384,10 @@ Expected: the CLI answers with the message id. The file keeps the shell from exp
 
 ### Workers → Tech-lead
 
-Workers reach the Tech-lead only through its Run, with `worker_done`, `ask`, `escalation` and heartbeats. The
-Tech-lead answers a question with `orca orchestration reply --id <msg-id> --body "$(cat <file>)"`, sends a note with
-`orca orchestration send --to dispatch:<dispatch-id> ...`, and reads a heartbeat as a sign of life only. After
+Workers reach the Tech-lead only through its Run, with `worker_done`, `ask` and `escalation`; since Orca 1.4.246
+they send no heartbeats. The Tech-lead answers a question with
+`orca orchestration reply --id <msg-id> --body "$(cat <file>)"` and sends a note with
+`orca orchestration send --to dispatch:<dispatch-id> ...`. After
 `worker_done` the dispatch is complete; release its terminal with
 `orca orchestration worker-release --dispatch <dispatch-id>`.
 
@@ -432,8 +450,10 @@ With the example stack `acme`. Steps marked **HUMAN** need the human in the Orca
 
 1. Kill the tmux sessions `acme-pr-monitor` and `acme-worker-watch` ([stop and restart](../tools/README.md#stop-and-restart)).
 2. Close the chats: Ideas, the Tech-lead and any worker chat.
-3. Remove the Ideas, Tech-lead and worker worktrees with `orca worktree rm --force`, taking each path from
-   `orca worktree list`. It also deletes a branch it can prove is merged ([gotchas](./gotchas.md#orca-worktree-rm-also-deletes-the-branch)).
+3. Remove the Ideas, Tech-lead and worker worktrees with
+   `orca worktree rm --worktree path:<path> --force --delete-branch`, taking each
+   path from `orca worktree list`. `--delete-branch` deletes a local branch Orca can prove is merged and keeps any
+   other ([gotchas](./gotchas.md#orca-worktree-rm-keeps-the-branch)).
 4. Remove `~/.local/share/acme/`.
 5. Optionally, only to drop the memory: `engram delete project <memory.engram_project> --hard`. Small 0-observation
    projects named after worktrees may also exist ([gotchas](./gotchas.md#engram-may-create-small-projects-named-after-worktrees)).

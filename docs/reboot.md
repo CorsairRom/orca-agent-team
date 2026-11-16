@@ -29,22 +29,23 @@ With several [teams](../tools/README.md#teams), run the procedure once per team,
 
 What survives: the worktrees, the transcripts under `~/.claude/projects/`, the local-share tree with the run-id
 files, the resume prompts and the briefs, the Engram memory, and the Runs. Whether a Run stays usable after a full
-reboot is `(unverified)`: step 2 of each checklist checks it with `orca orchestration run-current` and creates a
-new one only when the old one is unusable.
+reboot is `(unverified)`: step 2 of each checklist checks it with `orca orchestration run-current`, takes it back
+with `orca orchestration run-use --id` when the chat is no longer bound to it, and creates a new one only when that
+is refused.
 
 ### The procedure
 
 Steps marked **HUMAN** need the human in the Orca UI.
 
-1. **HUMAN — start Orca** and check its three settings are unchanged: Chat UI on, "Agent sleep" off, "Agent
-   Dashboard" on.
+1. **HUMAN — start Orca** and check its [settings](./setup-guide.md#orca-settings) are unchanged: idle chat agents
+   stop "Never", "Agent sleep" off, "Agent Dashboard" on.
 2. **HUMAN — reopen the Ideas chat** in the hub's Ideas worktree, from Orca's agent session history, so it resumes
    the same Claude session. Then paste the content of `~/.local/share/acme/ideas/resume-prompt.txt` **in that same
    tab**.
 3. **Ideas runs its checklist as a RESUME:**
    - verifies it is its own session;
-   - checks its Run, keeps it when it is the one in its run-id file, and otherwise creates a new one and writes its
-     id to the run-id file;
+   - checks its Run, keeps it when it is the one in its run-id file, otherwise takes that Run back with `run-use`,
+     and only when that is refused creates a new one and writes its id to the run-id file;
    - reads its mailbox;
    - wakes the Tech-lead with a `[From Ideas] Ideas is back` message to the Tech-lead's Run that carries a token,
      `PONG-<n>` with a new `<n>` each time.
@@ -57,7 +58,7 @@ Steps marked **HUMAN** need the human in the Orca UI.
    - verifies its identity and checks its Run, as Ideas did; the monitors read the run-id file on every send, so a
      new Run needs no restart;
    - reads its mailbox;
-   - restarts the PR monitor and the permission watch from its own chat, as
+   - restarts the PR monitor and the worker watch from its own chat, as
      [`tools/README.md`](../tools/README.md#start) describes; expected: `tmux ls` lists both, and an alive check
      with the Tech-lead's own sender arrives in its mailbox;
    - reconciles its inventory with what is alive (below);

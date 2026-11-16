@@ -50,6 +50,9 @@ This brief takes precedence over any global instruction you have loaded:
 
 ## Ownership and contract
 
+<!-- With --dangerously-skip-permissions in Orca's agentDefaultArgs.claude, these lines are a Claude worker's only
+limit: docs/gotchas.md, "Orca passes its default args to every worker". -->
+
 - **You own:** <files or folders only you write>
 - **You must not edit:** <files owned by other running tasks, shared registries>
 - **Contract:** `<path to the contract or API schema>` — announce any change to it with `orca orchestration send`
@@ -96,7 +99,7 @@ and running other commands, such as `env`, `ps` or a `find` over the home direct
 - **Files you may read:** `<exact paths>`
 - **Files you may write:** `<exact paths, or "none" for an explore unit>`
 - **Commands you may run:** `<each exact command>`, and the `orca orchestration` commands of your dispatch
-  (heartbeat, `ask`, `worker_done`)
+  (`ask`, `worker_done`)
 - **Staging and committing:** <"forbidden: leave the change in the worktree; the tech lead commits it after
   review" · or "allowed: `git add <exact paths>`, then one `git commit` with a Conventional Commit message">
 - **Pushing and pull requests:** <"forbidden" · or "allowed: `git push origin <branch>`, no force; open the PR

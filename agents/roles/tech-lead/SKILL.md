@@ -28,7 +28,9 @@ Run your checklist, [`templates/after-start-tech-lead.md`](../../templates/after
 - **First start:** create your Run from this chat, write its id to `<tech-lead run-id file>`, send Ideas the
   handshake, and record its confirmation.
 - **Resume** (after a reboot or a reopen): the same checklist checks your Run with
-  `orca orchestration run-current --json`, creates a new one only if the old one is unusable, checks the monitors
+  `orca orchestration run-current --json`, takes back the Run of your run-id file with
+  `orca orchestration run-use --id` when this chat is no longer bound to it, creates a new one only when that is
+  refused, checks the monitors
   are running, and reconciles the inventory with what is alive. The full procedure is in
   [`docs/reboot.md`](../../../docs/reboot.md).
 - Replace your Run only with no live or pending dispatches
@@ -138,8 +140,14 @@ orca orchestration worker-start \
   --task-title "<task>" --worktree path:<absolute worktree path> --agent opencode2 --json
 ```
 
-Whether `worktree create` records the new worktree as a child of yours is `(unverified)`; see `orca worktree create
---help`. Read its path from the JSON output.
+`worktree create` records the new worktree as a child of yours: "By default, Orca records the new worktree as a
+child of the caller context when it can infer one from the Orca terminal or current directory" (`orca worktree create
+--help`). Read its path from the JSON output.
+
+To set the OpenCode model at launch instead, start the worker on the same existing worktree with
+`--agent opencode --model <model id>` and no `--effort`. This was observed on Orca 1.4.258 with OpenCode 2.3.0
+([providers](../../../docs/providers.md#start-an-opencode-worker)); the `opencode2` line above stays the team's
+default.
 
 **A free tier runs out.** An OpenCode session on a free model stops with `provider.free-limit` ("Free usage limit
 reached. ... or switch models.") and falls back to no other model. The worker watch sends
@@ -151,19 +159,35 @@ OpenCode's worker agent ([providers](../../../docs/providers.md)) and dispatch a
 ## Run
 
 - Process every `worker_done`, `question` and `escalation`. Answer what you can; send product decisions to Ideas
-  and let the developer continue meanwhile.
+  and let the developer continue meanwhile. Orca itself sends two kinds of `escalation`
+  (`orca skills get orchestration --full`, "When Orca wakes you"; the subjects and `stopReason` values below were
+  observed on Orca 1.4.258, not quoted from the skill):
+  - with a `stopReason` of `finished`, subject "Worker stopped without reporting": the worker ended its turn
+    without `worker_done`; the Dispatch is still open, and the body ends with its last output and a `worker-read`
+    line. Steer it with `send`, or stop and retry it on the same worktree. `exited` or `lost` means it is gone, so
+    retry it or report it to Ideas.
+  - with an `approval` (`stopReason` `needs-input`, subject "Worker is waiting for permission"): a permission
+    prompt of the worker that only a person can allow. Report it to Ideas at once, with the exact prompt and your
+    read on whether it is safe, instead of waiting silently. Never allow it yourself; deny it only when it holds up
+    the task: `orca orchestration deny --dispatch <dispatch-id> --prompt <approval-id> --reason "<why>"`, with the
+    `approvalId` of the escalation's `approval`. Orca's reply says the reason is sent to the worker as a message;
+    the worker carries on. Once the prompt is answered, by you or a person, Orca sends a `status` "Worker approval answered"
+    with the decision.
 - A worker that asks because its base is behind the main line: fetch, bring `<target branch>` up to date (or, when
   it is the main branch, start the unit again from the fresh one), and answer. Workers never rebase it themselves.
 - A failed task is a decision for you, not a stop for the others.
 - One worktree per work unit, kept while the feature is open. Corrections go in that unit's existing worktree, on
-  the same branch, through a new dispatch with `--worktree path:<absolute path>`. Never create a new worktree to
-  correct a unit.
+  the same branch: as a follow-up `send --to dispatch:<dispatch-id>` to the worker that did the unit, or, when
+  `send` is refused or the correction needs another agent or model, through a new dispatch with
+  `--worktree path:<absolute path>` ([corrections](../../README.md#running-a-feature-in-orca)). Never create a new
+  worktree to correct a unit.
 - **PR monitor.** Running before the first PR of a feature, on every open PR you own or hand to the product owner,
   integration and hub PRs included ([`tools/README.md`](../../../tools/README.md)). Act on each note on your own
   (remove merged worktrees, fix and answer review comments, release terminals), then report to Ideas.
-- **Worker watch.** It reports the Run's live workers that wait on a prompt only a human can answer, those stopped on
-  a usage-limit error, and those it cannot observe. Report each wait to Ideas at once, with the exact prompt and your read on whether it is safe,
-  instead of waiting silently; read an unobservable worker by hand with the `worker-read` line it sends.
+- **Worker watch.** It reports the Run's live workers stopped on a usage-limit error, and those it cannot read.
+  Permission prompts and stops without `worker_done` are not its job: they come as Orca's `escalation` messages
+  (above). Handle a usage limit as in [providers](#providers); read an unobservable worker by hand with the
+  `worker-read` line it sends.
 - **Inventory:** your Run, every worktree, subagent worktree, worker terminal, tmux session, container, database
   and test-data path you open, with where it lives, why, and when it is removed. Update it on every open and every
   removal. By default it is the Engram topic `<inventory topic>` (project `<engram project>`).
@@ -181,8 +205,9 @@ OpenCode's worker agent ([providers](../../../docs/providers.md)) and dispatch a
   could not verify, and send it to Ideas for the product owner.
 - Update the hub's backlog (`<hub.backlog_file>`); you are its only writer.
 - When the feature is merged into the main line, check that every worktree of the feature is clean
-  (`git status --porcelain` empty, nothing unpushed) and remove them with `orca worktree rm --worktree <selector>`.
-  Remote branches stay. Report a worktree that is not clean; do not remove it. Release the feature's worker
+  (`git status --porcelain` empty, nothing unpushed) and remove them with
+  `orca worktree rm --worktree <selector> --delete-branch`, which deletes a merged local branch. Remote branches
+  stay. Report a worktree that is not clean; do not remove it. Release the feature's worker
   terminals.
 
 ## Memory you curate

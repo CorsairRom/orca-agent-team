@@ -117,7 +117,7 @@ providers:
 # The three Orca settings the setup expects. The human sets them by hand in the Orca settings UI, and the
 # bootstrap asks the human to confirm them; the env file records them for the chats to read.
 orca:
-  # Chat UI ON: both chats run as Orca chats.
+  # Chat UI: both chats run as Orca chats. Orca 1.4.246 and later have no switch for it; set idle chat agents to stop "Never".
   chat_ui: true
   # Agent sleep OFF: mail does not wake a slept agent, so a slept coordinator would miss its mailbox.
   agent_sleep: false
@@ -129,7 +129,7 @@ orca:
 monitors:
   # Seconds between two polls of the PR monitor.
   pr_interval_seconds: 300
-  # Seconds between two ticks of the worker permission watch.
+  # Seconds between two ticks of the worker watch.
   watch_interval_seconds: 20
   # gh pr list --author filter: "@me" is the account gh is logged in with.
   pr_author: "@me"

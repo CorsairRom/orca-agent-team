@@ -6,10 +6,12 @@ Two monitors that run beside the Tech-lead, and the env file they read:
 | --- | --- | --- |
 | [The env file](#writing-the-env-file) | `<team dir>/stack.env`, one per [team](#teams): every value of `config/stack.yaml` a bash step needs, as `KEY='value'` lines, plus the conventions file the Tech-lead passes into briefs. The chats and the monitors source it; some keys, such as `MODEL_*`, `PROVIDER_*`, `LANG_*` and `DELIVERY_*`, only the chats read. A chat writes it from the config; nothing parses the YAML locally | Once at install, and after every config change |
 | [`pr-monitor.sh`](./pr-monitor.sh) | Polls the pull requests of every repository of the stack and sends the Tech-lead one line per change | In tmux, every 300 s by default |
-| [`worker-watch.sh`](./worker-watch.sh) | Reads Orca's observation of every live worker of the Tech-lead's Orca Run and tells the Tech-lead, once per prompt or error, when a worker waits on a prompt only a human can answer, stopped on a usage-limit error, or cannot be observed | In tmux, every 20 s by default |
+| [`worker-watch.sh`](./worker-watch.sh) | Reads the newest rows of every live worker of the Tech-lead's Orca Run and tells the Tech-lead, once per error or worker, when a worker stopped on a usage-limit error or cannot be read. Permission prompts and stops without `worker_done` reach the Tech-lead as Orca's own `escalation` messages instead | In tmux, every 20 s by default |
 
 The monitors only read GitHub and Orca. They write to their own state directory and send to the mailbox of the
-Tech-lead's Orca Run. They never approve, merge or answer anything. Where they fit in the whole setup: the
+Tech-lead's Orca Run. They never approve, merge or answer anything, and never run `orca orchestration check`: Orca's
+orchestration skill forbids watch scripts because "a script's plain `check` takes your mail", and a script that only
+watches an inbox must use `--peek` (`orca orchestration check --help`). Where they fit in the whole setup: the
 [setup guide](../docs/setup-guide.md); restarting them after a reboot: [reboot procedure](../docs/reboot.md).
 
 ## Requirements
@@ -236,13 +238,17 @@ orca orchestration inbox --limit 100 --json | jq -c --arg tl "run:$(cat "$TECH_L
 On Orca 1.4.246 `inbox` lists the messages under `.result.messages`, newest first, and holds the mail of every Run on
 the Orca. Each message carries `id`, `type`, `from`, `to` (`run:<run id>`), `subject`, `handled` and `body`. The query
 takes the newest alive check sent to the Tech-lead's Run and the newest `[Tech-lead] ready` sent to Ideas' Run, so
-another team's mail does not show.
+another team's mail does not show. With `--full` each row is Orca's stored record instead (observed on 1.4.258):
+`from_handle` and `to_handle` in place of `from` and `to`, `read` in place of `handled`, and `payload` as a JSON
+string, among other fields.
 
-Expected: one line each, with the same `from`. Another sender
-means the sessions carry another chat's identity: the Tech-lead starts them again with the start lines above. A send
-refused with `no_active_sender_terminal` means the session has no live Orca identity at all `(unverified)`. Whether a
-Tech-lead identity still sends after the Chat UI's idle sweep has stopped its process is `(unverified)`; the
-Tech-lead's checklist restarts the monitors on every resume, and the alive check tells.
+Expected: one line each, with the same `from`. For a chat it is `orca_session_id:<its ORCA_AGENT_SESSION_ID>`, which
+`echo "$ORCA_AGENT_SESSION_ID"` prints in the Tech-lead's chat (observed on Orca 1.4.258). Another sender means the
+sessions carry another identity, such as the `ORCA_TERMINAL_HANDLE` of whoever started the tmux server: the
+Tech-lead starts them again with the start lines above. A send refused with `no_active_sender_terminal` ("Could not
+determine the calling terminal for this orchestration command. …") means the session has no `ORCA_*` variable at
+all. Whether a Tech-lead identity still sends after the Chat UI's idle sweep has stopped its process is
+`(unverified)`; the Tech-lead's checklist restarts the monitors on every resume, and the alive check tells.
 
 ## Reference
 
@@ -285,34 +291,42 @@ poll with every change: `NEW <repo>#<n> <state> -> <base>`, `state A->B`, `ready
 | `WATCH_LIMIT_PATTERNS` | none | Newline-separated extended regexes of usage-limit errors, matched case-insensitively and added to the defaults below |
 | `ORCA_BIN` | `orca`, else `orca-ide` | Orca CLI |
 
-Every tick it lists the Run's workers (`orca orchestration worker-list --run <run_id> --json`, status
-`dispatched`) and reads Orca's own observation of each one, `.result.observation.agentWait` of
-`orca orchestration worker-show --dispatch <dispatch-id> --json`. `worker-show --help` defines it: a value names a
-worker parked on a prompt only a human can answer, with the evidence; `null` means Orca looked and found no wait;
-an absent field means Orca did not look, which never means the worker is not waiting. The shape of a non-null value
-is `(unverified)`; the watch passes it on as compact JSON.
+Every tick it lists the Run's workers (`orca orchestration worker-list --run <run_id> --json --full`, status
+`dispatched`). It needs `--full`: since Orca 1.4.246 `--json` alone prints a concise view without
+`dispatchStatus`, and the watch would then see no worker and report nothing. For each live worker it reads the
+newest two pages with `orca orchestration worker-read --dispatch <dispatch-id> --source auto`. Between ticks it
+keeps the cursor of the last page it read, because the cursor after the newest page is refused as invalid
+`(unverified)`.
 
-- `agentWait` set: it notifies once per wait, keyed by a hash of the dispatch id and the value, with
-  `[worker watch] <dispatch-id> is WAITING on a prompt only a human can answer: <agentWait>`.
-- `agentWait` absent: it falls back to `orca orchestration worker-read --dispatch <dispatch-id> --source auto`,
-  keeps the newest two pages, and looks for a `[system] Allow` line with no later line starting with `resolved`,
-  `denied`, `[assistant]` or `[tool result]`; it then notifies once per prompt with
-  `[worker watch] <dispatch-id> is WAITING on a permission prompt (...): <command>`. Whether a transcript source
-  shows permission prompts this way is `(unverified)`. Between ticks it keeps the cursor of the last page it read,
-  because the cursor after the newest page is refused as invalid `(unverified)`.
-- Usage limit, on every tick for every live worker, whichever path above ran: it reads the worker's newest two pages
-  with `worker-read --source auto` and looks for a line matching a default or a `WATCH_LIMIT_PATTERNS` pattern. It
-  notifies once per worker and line with `[worker watch] <dispatch-id> stopped on a usage limit: <the matched line,
-  200 characters at most>`, and ticks `limit-HIT`. It reports the error and changes nothing; the Tech-lead
-  re-dispatches the unit on another provider ([providers](../docs/providers.md)). A line that only quotes a pattern,
-  such as a transcript of a worker editing this script, also matches.
-- Neither works: it never skips the worker silently. It ticks `unobservable` and notifies once per dispatch with
-  `[worker watch] <dispatch-id> cannot be observed ...` and the `worker-read` line to read it by hand.
+- Usage limit: it looks for a line matching a default or a `WATCH_LIMIT_PATTERNS` pattern. It notifies once per
+  worker and line with `[worker watch] <dispatch-id> stopped on a usage limit: <the matched line, 200 characters at
+  most>`, and ticks `limit-HIT`; otherwise it ticks `no-limit`. It reports the error and changes nothing; the
+  Tech-lead re-dispatches the unit on another provider ([providers](../docs/providers.md)). A line that only quotes
+  a pattern, such as a transcript of a worker editing this script, also matches.
+- `worker-read` fails: it never skips the worker silently. It ticks `unobservable` and notifies once per dispatch
+  with `[worker watch] <dispatch-id> cannot be observed (worker-read failed)` and the `worker-read` line to read it
+  by hand.
 
-The watch only sees workers that are alive at a tick, and that is enough: a worker parked on a prompt stays alive,
-so a later tick always sees it. A worker that starts and finishes between two ticks is never ticked, and needs no
-watch. On the minimum Orca version, `worker-show` gives no `agentWait` field for a running worker, so the
-`worker-read` fallback is the path that runs; whether `agentWait` appears for a parked worker is `(unverified)`.
+It does not look for permission prompts or for workers that stopped without `worker_done`: Orca sends the
+coordinator its own `escalation` for both, with a `stopReason` in its payload; the first two values below were
+observed on Orca 1.4.258:
+
+- `finished`: the worker ended its turn without `worker_done` (subject "Worker stopped without reporting"). The
+  Dispatch is still open, and the body ends with the worker's last output and a `worker-read` line.
+- `needs-input`, with an `approval`: a prompt only a person can allow (subject "Worker is waiting for permission").
+  Once it is answered, Orca sends a `status` "Worker approval answered" with the decision; a deny reason goes to the
+  worker as a message.
+- `exited` or `lost`: the worker is gone (`orca skills get orchestration --full`).
+
+The Tech-lead handles them as its [Run section](../agents/roles/tech-lead/SKILL.md#run) says. A usage-limit stop
+was not seen in that check: since a stop without `worker_done` raises the `finished` escalation with the last
+output, a worker stopped on a usage limit probably arrives that way, with the error in its last output
+`(unverified)`. This watch still reports usage-limit errors, with the matched line, and a worker `worker-read`
+cannot read. An agent that dies while its terminal stays open may raise no escalation, and this watch sees it only
+when the terminal shows a usage-limit line.
+
+The watch only sees workers that are alive at a tick. A worker that starts and finishes between two ticks is never
+ticked, and needs no watch: its `worker_done` or Orca's escalation reaches the Tech-lead.
 
 Default usage-limit patterns, extended regexes, matched case-insensitively:
 
@@ -326,8 +340,6 @@ Default usage-limit patterns, extended regexes, matched case-insensitively:
 
 Set `WATCH_LIMIT_PATTERNS` in the env file as a multi-line value, one regex per line; blank lines are ignored.
 
-The Tech-lead then reports the prompt and its safety read to Ideas; the human decides.
-
 ## Logs and state
 
 All in `MONITOR_DIR`, `<team dir>/monitors`, outside every repository:
@@ -337,10 +349,10 @@ All in `MONITOR_DIR`, `<team dir>/monitors`, outside every repository:
 | `state.json` | PR monitor | The last snapshot, the base of the next diff |
 | `monitor.log` | PR monitor | Every change sent, every failed snapshot, the output of each send |
 | `pending.txt` | PR monitor | Lines not delivered yet; emptied after a delayed send succeeds |
-| `worker-watch.ticks` | worker watch | One line per worker per tick: `no-wait` or `wait-PENDING` from `agentWait`; `no-allow`, `allow-resolved` or `allow-PENDING` from the fallback; `limit-HIT` for a worker whose rows match a usage-limit pattern, besides one of the others; `unobservable`; `no-run-id` for a tick with no Run to watch; trimmed to 2000 lines |
-| `worker-watch.cursor.<dispatch-id>`, `worker-watch.tail.<dispatch-id>` | worker watch | The fallback's last cursor and newest rows of one worker |
+| `worker-watch.ticks` | worker watch | One line per worker per tick: `limit-HIT` for a worker whose rows match a usage-limit pattern, `no-limit` otherwise, `unobservable` when `worker-read` fails; `no-run-id` for a tick with no Run to watch; trimmed to 2000 lines |
+| `worker-watch.cursor.<dispatch-id>`, `worker-watch.tail.<dispatch-id>` | worker watch | The last `worker-read` cursor and newest rows of one worker |
 | `worker-watch.log` | worker watch | Every notification and the output of each send, including a failed or skipped send |
-| `worker-watch.seen` | worker watch | Keys of prompts already notified |
+| `worker-watch.seen` | worker watch | Keys of usage-limit errors and unobservable workers already notified |
 
 ## Stop and restart
 

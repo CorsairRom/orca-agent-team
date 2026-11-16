@@ -13,7 +13,7 @@ talk, how workers are dispatched, and the rules for review, QA, memory and clean
 | [`../docs/setup-guide.md`](../docs/setup-guide.md) | Building the whole setup on a machine |
 | [`../docs/reboot.md`](../docs/reboot.md) | What to do after a reboot or a chat reopen |
 | [`../docs/gotchas.md`](../docs/gotchas.md) | Orca and Claude Code behaviours that break the workflow if ignored |
-| [`../tools/README.md`](../tools/README.md) | The PR monitor and the worker permission watch |
+| [`../tools/README.md`](../tools/README.md) | The PR monitor and the worker watch |
 | [`../config/stack.example.yaml`](../config/stack.example.yaml) | The stack's configuration: repositories, hub layout, delivery, conventions, memory, languages, models, providers, Orca settings |
 
 ## Placeholders
@@ -74,12 +74,13 @@ Product owner ── talks only to Ideas
                ├─ its own standing Run, reused across features, id in <tech-lead run-id file>
                │    └─ workers: one Orca worker and one worktree per work unit (worker-start --worktree new-child)
                ├─ PR monitor    → PR changes to the tech lead's Run mailbox
-               └─ worker watch  → pending permission prompts to the tech lead's Run mailbox
+               └─ worker watch  → usage-limit stops and unreadable workers to the tech lead's Run mailbox
 Shared memory: Engram, project <engram project>, read by every agent, written by Ideas and the tech lead
 ```
 
-The tech lead is not a worker of Ideas: Orca's nesting depth is 1, so a worker cannot start its own workers. Both
-are top-level coordinators, each with its own Run, and they talk Run to Run.
+The tech lead is not a worker of Ideas. Both are top-level coordinators, each with its own Run, and they talk Run
+to Run. Workers start no workers of their own, although Orca 1.4.251 and later allow it
+([gotchas](../docs/gotchas.md#workers-may-start-their-own-workers)).
 
 ## Quick path
 
@@ -211,11 +212,12 @@ run-id file. They talk only through those Runs. The steps that set this up are t
 [Ideas'](./templates/after-start-ideas.md) and the [tech lead's](./templates/after-start-tech-lead.md).
 
 - **Create the Run from the coordinator's own chat**, never from a subagent or another chat. A Run is bound to the
-  session that created it; another session cannot read its mailbox or dispatch under it
+  session that created it; another session's `check` on it is refused until that session takes the Run over
   ([gotchas](../docs/gotchas.md#a-run-is-bound-to-the-session-that-created-it)).
   `orca orchestration run-current --json` shows the bound Run (the id is at `.result.runId`, `null` or missing when there is none);
   `orca orchestration run-create --objective "<objective>" --json` creates one, and its id goes alone on one line
-  into the run-id file.
+  into the run-id file. On a RESUME, a chat no longer bound to the Run of its run-id file takes it back with
+  `orca orchestration run-use --id "$(cat <run-id file>)" --json`, and creates a new one only when that is refused.
 - **Receive** by [the mailbox rule](#the-mailbox-rule) below.
 - **Send** by writing the body to a file in the sender's durable folder first, then:
   `orca orchestration send --to "run:$(cat <peer run-id file>)" --type status --subject "<prefix> <subject>" --body "$(cat <file>)"`.
@@ -231,19 +233,24 @@ run-id file. They talk only through those Runs. The steps that set this up are t
 
 This is the only copy of the rule; every other file links here.
 
-When new mail arrives in a Run, Orca injects a prompt into the idle chat bound to that Run: "You have N
-orchestration message(s). Run `orca orchestration check --run <run-id>`." An idle chat with no background command
-wakes on it ([gotchas](../docs/gotchas.md#orca-prompts-an-idle-chat-when-its-run-gets-mail)). Whether the prompt
-also reaches a chat that the Chat UI idle sweep has closed is `(unverified)`.
+When new mail arrives in a Run, Orca injects a prompt into the idle chat bound to that Run, and an idle chat with no
+background command wakes on it ([gotchas](../docs/gotchas.md#orca-prompts-an-idle-chat-when-its-run-gets-mail)).
+In a Chat UI chat, such as Ideas and the tech lead, the prompt is the message itself, whole, and Orca marks it read
+once the chat accepts it. A terminal agent, or a message too large for a chat message, gets a prompt that names a
+`check` command instead. Whether the prompt also reaches a chat that the Chat UI idle sweep has closed is
+`(unverified)`.
 
-On that prompt, and whenever the chat starts or resumes:
-
-1. `orca orchestration check --run <own run id> --json`;
-2. read EVERY message of the batch it returns, heartbeats included;
-3. act on each;
-4. repeat from 1 until `.result.messages` is empty. Optionally confirm with
-   `orca orchestration check --run <own run id> --peek --json`, which returns only unread messages without
-   marking them.
+- **A prompt that holds a message:** read it whole and act on it. A later `check` does not return it.
+- **A prompt that names `check`, and whenever the chat starts or resumes:**
+  1. `orca orchestration check --run <own run id> --json`;
+  2. read EVERY message of the batch it returns;
+  3. act on each;
+  4. repeat from 1 until `.result.messages` is empty. Optionally confirm with
+     `orca orchestration check --run <own run id> --peek --json`, which returns only unread messages without
+     marking them.
+- **Lost track** (after a compaction, a crash, or a `check` whose output was lost):
+  `orca orchestration inbox --terminal run:<own run id> --limit 50 --full` lists the mail already handled, newest
+  first. A lost `check` response comes back whole with the `--retry-request <id>` that `check` printed.
 
 No flag is needed to acknowledge: on Orca 1.4.246 a plain `check` returns the Run's oldest unread batch and marks it
 handled ([gotchas](../docs/gotchas.md#a-plain-check-marks-its-batch-handled)). `<own run id>` is
@@ -274,22 +281,26 @@ orca orchestration worker-start \
   selects a repository by path, so its display name never matters. A worker started
   with `--worktree current` would share the tech lead's worktree.
 - **Corrections** to a unit (review fixes, contract amendments, PRD changes) go in that unit's existing worktree, on
-  the same branch: `worker-start --worktree path:<absolute path>` with no `--name`, `--repo` or `--base-branch`.
-  Never create a new worktree to correct a unit.
-- **After `worker_done`** the dispatch is settled and cannot be reused; a follow-up is a new `worker-start` on the
-  same worktree. Release a settled worker's terminal with
+  the same branch. Send them to the worker that did the unit, even after its `worker_done`:
+  `orca orchestration send --to dispatch:<dispatch-id> --subject "..." --body "$(cat <file>)"` reopens it as a
+  follow-up Task with its saved conversation, under a new dispatch id that later mail goes to
+  ([gotchas](../docs/gotchas.md#a-finished-worker-takes-a-follow-up-through-send)).
+  When `send` is refused, or the correction needs another agent or model, use
+  `worker-start --worktree path:<absolute path>` with no `--name`, `--repo` or `--base-branch`. Never create a new
+  worktree to correct a unit.
+- **After `worker_done`** the Task is settled. Release a settled worker's terminal with
   `orca orchestration worker-release --dispatch <dispatch-id>` when the feature closes.
 - **Answering workers.** A question: `orca orchestration reply --id <msg-id> --body "$(cat <file>)"`. A note to a
-  live worker: `orca orchestration send --to dispatch:<dispatch-id> --subject "..." --body "$(cat <file>)"`. A
-  heartbeat is a sign of life only.
+  live worker: `orca orchestration send --to dispatch:<dispatch-id> --subject "..." --body "$(cat <file>)"`.
 - **Orca has no merge command:** `merge_ready` is only a message. Merges follow the configured
   [delivery](#delivery).
 - **Monitors.** Before the first PR of a feature, the PR monitor and the worker watch run in the tmux sessions
   `<tmux prefix>-pr-monitor` and `<tmux prefix>-worker-watch` and post to the tech lead's Run mailbox, as
   [`tools/README.md`](../tools/README.md) describes. The PR monitor covers every open PR the tech lead owns or hands
-  to the product owner. The worker watch reports a worker waiting on a prompt only a human can answer once per prompt,
-  and a worker it cannot observe; the tech lead reports each wait to Ideas at once, with the exact prompt and its
-  read on whether it is safe, instead of waiting silently.
+  to the product owner. The worker watch reports, once each, a worker stopped on a usage-limit error and a worker it
+  cannot read. Permission prompts and stops without `worker_done` arrive as Orca's own `escalation` messages; the
+  tech lead reports each permission prompt to Ideas at once, with the exact prompt and its read on whether it is
+  safe, instead of waiting silently ([tech lead, Run](./roles/tech-lead/SKILL.md#run)).
 
 ## Rules that keep the work moving
 
@@ -324,8 +335,9 @@ orca orchestration worker-start \
   removed. It is updated on every open and every removal. By default it lives in Engram, topic
   `<inventory topic>` (project `<engram project>`); change it freely.
 - When a feature is merged into its main line, the tech lead checks that every worktree of the feature is clean
-  (`git status --porcelain` empty, nothing unpushed) and removes them with `orca worktree rm --worktree <selector>`.
-  Remote branches stay. A worktree that is not clean is reported, not removed.
+  (`git status --porcelain` empty, nothing unpushed) and removes them with
+  `orca worktree rm --worktree <selector> --delete-branch`, which deletes a merged local branch. Remote branches
+  stay. A worktree that is not clean is reported, not removed.
 - Scratch files live outside every repository and are deleted after use.
 
 ## Memory

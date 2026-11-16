@@ -1,11 +1,14 @@
 # Workers on other providers
 
 By default every worker is a Claude Code session. Orca can also start a supervised worker on another agent, such as
-Antigravity or OpenCode v2, under the same Run, with the same `worker_done`, `ask` and heartbeats. This page says
+Antigravity or OpenCode v2, under the same Run, with the same `worker_done` and `ask`. This page says
 when the team uses one, how each agent is set up, and how a new provider is accepted.
 
 Everything here is checked on Orca 1.4.245, Antigravity `agy` 1.4.2 and OpenCode 2.2.2. A point that is not is
-marked `(unverified)`. The gotchas behind each step are in [gotchas](./gotchas.md#other-providers).
+marked `(unverified)`. Points that name a later Orca version come from that version's `--help` and release notes;
+the smoke test has not been run again on Orca 1.4.258. Three points were observed on Orca 1.4.258 with OpenCode
+2.3.0: the escalation of an `ask` rule, a follow-up `send` to a finished worker, and the OpenCode model at launch.
+The gotchas behind each step are in [gotchas](./gotchas.md#other-providers).
 
 ## When the team uses them
 
@@ -43,8 +46,10 @@ may use yourself.
 
 ### Antigravity setup
 
-1. **HUMAN:** in Orca, sign in to Antigravity with a Google account. Orca's runtime has its own sign-in; an `agy`
-   login on the machine does not carry over.
+1. **HUMAN:** in Orca, sign in to Antigravity with a Google account, before the first Antigravity chat. Orca's
+   runtime has its own sign-in; an `agy` login on the machine does not carry over. Without it, since Orca 1.4.254,
+   a new Antigravity chat may run on the machine's own `agy acp` instead, when `agy` itself is signed in
+   ([gotchas](./gotchas.md#orca-runs-its-own-antigravity-runtime)); that chat does not read the MCP file of step 3.
 2. **HUMAN:** check Orca's permission setting for Antigravity. Its default is full access: nothing stops a write
    or a command. The brief is then the only limit, so it lists the exact files and commands allowed.
 3. Give the runtime the Engram MCP server. Orca runs it with `GEMINI_HOME=<orca config>/antigravity-chat`, and it
@@ -83,7 +88,8 @@ orca orchestration worker-start \
 ## OpenCode v2
 
 Orca agent id `opencode2`. OpenCode reads its own config (`~/.config/opencode/opencode.json` by default `(unverified)`),
-and Orca passes neither a model nor an effort to it.
+and Orca passes neither a model nor an effort to it. The agent id `opencode` takes a model at launch on an existing
+worktree ([start line](#start-an-opencode-worker)).
 
 ### OpenCode setup
 
@@ -127,8 +133,11 @@ and Orca passes neither a model nor an effort to it.
    }
    ```
 
-   The rule for `"*"` is the stack's choice; a rule set to `ask` parks the worker on a prompt, which the
-   [worker watch](../tools/README.md) reports `(unverified)`.
+   The rule for `"*"` is the stack's choice; a rule set to `ask` parks the worker on a prompt, which Orca escalates
+   to the Tech-lead with an `approval` ([Tech-lead, Run](../agents/roles/tech-lead/SKILL.md#run)). Observed on Orca
+   1.4.258 with OpenCode 2.3.0: `git push --force origin main` under an `ask` rule raised the escalation "Worker is
+   waiting for permission"; after `orca orchestration deny`, the worker carried on and reported the rejection, "The
+   user declined this tool call".
 
 2. **The permission order.** The last matching rule wins, in config order. So the `ask` rules for a force push
    come after `"git push *": "allow"`, and `git rebase *` and `git reset --hard *` stay `ask`. These patterns do
@@ -142,7 +151,8 @@ and Orca passes neither a model nor an effort to it.
    ```
 
 4. **HUMAN: pick the model once.** The TUI starts on the most recent model, from OpenCode's state file
-   `model.json` (its `recent` list), not on the agent's `model`. Open OpenCode and pick the intended model once.
+   `model.json` (its `recent` list), not on the agent's `model`. Open OpenCode and pick the intended model once, or
+   start the worker with `--agent opencode --model <model id>` ([start line](#start-an-opencode-worker)).
 5. **Check the config.** `opencode debug config` shows the resolved config; trust it over `opencode mcp list`,
    which may show no servers when the config has them. After an edit, run `opencode reload`.
 
@@ -158,8 +168,23 @@ orca orchestration worker-start \
   --task-title "<title>" --worktree path:<worktree path> --agent opencode2 --json
 ```
 
-Read `<worktree path>` from the `--json` output of `worktree create`. Run it from the Tech-lead's chat; that the
-worktree then nests under the Tech-lead's is `(unverified)`.
+Read `<worktree path>` from the `--json` output of `worktree create`. Run it from the Tech-lead's chat, so the
+worktree nests under the Tech-lead's: Orca records it as a child of the caller when it can infer one from the Orca
+terminal or current directory (`orca worktree create --help`).
+
+To set the model at launch instead, start the worker on the same existing worktree with the agent id `opencode`:
+"OpenCode model selection requires an existing worktree, a verified execution-host CLI, and an available model;
+effort is unsupported" (`orca orchestration worker-start --help`).
+
+```bash
+orca orchestration worker-start \
+  --spec "Your brief is the file <absolute brief path>. Read it whole first and follow it exactly." \
+  --task-title "<title>" --worktree path:<worktree path> --agent opencode --model <model id> --json
+```
+
+On Orca 1.4.258 this ran `opencode acp` on that model, for the session and every message, and left OpenCode's saved
+model list unchanged. It was observed with OpenCode 2.3.0, on which `opencode` and `opencode2` ran the same binary;
+the rest of this page was checked on 2.2.2. The team's start line above, and its config, stay on `opencode2`.
 
 ### OpenCode limits
 
@@ -168,7 +193,8 @@ worktree then nests under the Tech-lead's is `(unverified)`.
   watch](../tools/README.md#worker-watchsh-run_id-interval_seconds----once-run_id----help) reports the error to the
   Tech-lead, which can also see it with `orca orchestration worker-read --dispatch <dispatch-id> --source auto`,
   switches the `team-worker` model, and dispatches again on the same worktree.
-- The model is the one the agent config and the most recent pick say, never one the Tech-lead passes.
+- With `--agent opencode2`, the model is the one the agent config and the most recent pick say, never one the
+  Tech-lead passes; `--agent opencode --model` sets it at launch ([start line](#start-an-opencode-worker)).
 - `git push` is allowed by the permissions; the prompt and the brief decide whether the worker uses it.
 
 ## Accepting a new provider: the smoke test
@@ -188,14 +214,13 @@ The brief to dispatch:
 ```markdown
 # Brief — smoke test of <agent>
 
-This is a smoke test. Do only the four steps below, in order. Do not read any other file and do not run any
+This is a smoke test. Do only the three steps below, in order. Do not read any other file and do not run any
 other command. Do not commit, push or open a PR.
 
-1. Send one heartbeat to the Tech-lead with the heartbeat command of your task preamble.
-2. Read the first 30 lines of `<team repo>/agents/roles/dev-docs/SKILL.md`.
-3. Call the Engram MCP tool `mem_context` once, with `project: "<engram project>"`. Use the MCP tool; never the
+1. Read the first 30 lines of `<team repo>/agents/roles/dev-docs/SKILL.md`.
+2. Call the Engram MCP tool `mem_context` once, with `project: "<engram project>"`. Use the MCP tool; never the
    `engram` command line.
-4. Write `smoke.txt` at the root of your worktree:
+3. Write `smoke.txt` at the root of your worktree:
    - first line: the first heading of the card you read;
    - then the result of the `mem_context` call, or its exact error;
    - then your agent id and your model id.
@@ -206,7 +231,7 @@ three-sentence body.
 
 The provider passes when all of these hold:
 
-- a heartbeat and the `worker_done` arrive in the Tech-lead's Run;
+- the `worker_done` arrives in the Tech-lead's Run;
 - the worker watch ticks the dispatch: `worker-watch.ticks` in `<team dir>/monitors/` has a line for it
   ([logs and state](../tools/README.md#logs-and-state));
 - `smoke.txt` holds the card's heading, a `mem_context` result rather than an error, and the agent and model;
@@ -215,4 +240,5 @@ The provider passes when all of these hold:
 
 Then add the provider to `providers:` and write the env file again. When it fails, keep it out of `providers:` and
 keep the exact error. Either way, release the worker with `orca orchestration worker-release --dispatch
-<dispatch-id>` and remove its worktree with `orca worktree rm`; `smoke.txt` is never committed.
+<dispatch-id>` and remove its worktree with `orca worktree rm --worktree path:<absolute worktree path> --delete-branch`;
+`smoke.txt` is never committed.

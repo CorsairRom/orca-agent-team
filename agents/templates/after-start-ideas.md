@@ -36,8 +36,18 @@ load it in each block; no command here reads `config/stack.yaml`. It sets `$IDEA
    ```
 
    - The id shown is the one in the run-id file: keep it.
-   - It is empty (`.result.runId` is missing or `null`), or another id, or the command refuses this caller: create
-     one and store its id, only the id, on one line:
+   - It is empty (`.result.runId` is missing or `null`), or another id, or the command refuses this caller, and the
+     run-id file holds an id: take that Run back first, so the Tech-lead's mail to it keeps reaching this chat
+     (`run-use --help`: "Resume coordinating a Run"):
+
+     ```bash
+     . <env file>
+     orca orchestration run-use --id "$(cat "$IDEAS_RUN_ID_FILE")" --json
+     ```
+
+     Expected: `"ok":true`, and `.result.run.id` is the id of the run-id file: keep it.
+   - The run-id file is missing or empty, or `run-use` is refused: create one and store its id, only the id, on
+     one line:
 
      ```bash
      . <env file>

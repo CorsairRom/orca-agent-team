@@ -27,7 +27,7 @@ product owner ── talks only to Ideas
          └─ Tech-lead (chat, hub worktree "Tech-lead") ── its own standing Run
               ├─ workers, one per work unit (worker-start --worktree new-child)
               ├─ PR monitor        → the Tech-lead's Run mailbox
-              └─ permission watch  → the Tech-lead's Run mailbox
+              └─ worker watch      → the Tech-lead's Run mailbox
 Shared memory: one Engram project, read and written by both chats
 ```
 
@@ -46,9 +46,9 @@ orca orchestration send --to "run:$(cat ~/.local/share/acme/tech-lead/run-id.txt
 - The body is written to a file first and passed with `"$(cat <file>)"`, so the shell never expands its content.
 - Subjects start with `[From Ideas]` or `[Tech-lead]`. The monitors use `[PR monitor]` and `[Worker watch]`.
 - Each chat receives its mail by [the mailbox rule](./agents/README.md#the-mailbox-rule): Orca prompts the idle
-  chat when mail arrives, and the chat checks, reads and acts on every message.
+  chat with each message when it arrives, and the chat reads and acts on every message.
 - Nobody types into another agent's chat or terminal.
-- Workers reach the Tech-lead through its Run, with `worker_done`, `ask`, `escalation` and heartbeats.
+- Workers reach the Tech-lead through its Run, with `worker_done`, `ask` and `escalation`.
 
 The full protocol is in [`docs/setup-guide.md`](./docs/setup-guide.md#the-mailbox-protocol).
 
@@ -59,7 +59,7 @@ refers to this table for versions.
 
 | Need | Minimum version | Check | Notes |
 | --- | --- | --- | --- |
-| Orca desktop app and its `orca` CLI | **1.4.245** | `orca --version` | Chat UI on, "Agent sleep" off, "Agent Dashboard" on ([setup guide](./docs/setup-guide.md#orca-settings)) |
+| Orca desktop app and its `orca` CLI | **1.4.258** | `orca --version` | Idle chat agents stop "Never", "Agent sleep" off, "Agent Dashboard" on ([setup guide](./docs/setup-guide.md#orca-settings)) |
 | Claude Code | any current release | `claude --version` | Logged in. Ideas, the Tech-lead and the workers are Claude Code sessions |
 | `git` | any current release | `git --version` | Local clones of every repository in the config |
 | GitHub CLI `gh` | any current release | `gh --version`; `gh auth status` | Logged in, with access to every repository in the config. The PR monitor uses it |
@@ -76,7 +76,8 @@ setup ([providers](./docs/providers.md)).
 
 ## Install
 
-1. **HUMAN:** in the Orca app's settings, set Chat UI **on**, "Agent sleep" **off** and "Agent Dashboard" **on**.
+1. **HUMAN:** in the Orca app's settings, set idle chat agents to stop **Never**, "Agent sleep" **off** and
+   "Agent Dashboard" **on** ([Orca settings](./docs/setup-guide.md#orca-settings)).
 2. Open a new Claude Code chat in any Orca workspace (a folder workspace works too) and paste this prompt, with
    `<owner>` set to the GitHub account you install from (this repository's owner, or your fork):
 
@@ -142,7 +143,7 @@ the monitors from its own chat ([start lines](./tools/README.md#start)). A new r
 | [`agents/team-conventions.md`](./agents/team-conventions.md) | Rules for everything an agent writes |
 | [`agents/roles/`](./agents/roles/) | One card per role |
 | [`agents/templates/`](./agents/templates/) | PRD, brief, worker report, test plan, and the after-start checklists of [Ideas](./agents/templates/after-start-ideas.md) and the [Tech-lead](./agents/templates/after-start-tech-lead.md) |
-| [`tools/`](./tools/README.md) | The env file, the PR monitor and the permission watch |
+| [`tools/`](./tools/README.md) | The env file, the PR monitor and the worker watch |
 | [`docs/setup-guide.md`](./docs/setup-guide.md) | The setup guide, step by step, with the reasons |
 | [`docs/reboot.md`](./docs/reboot.md) | What to do after a reboot or when a chat is reopened |
 | [`docs/gotchas.md`](./docs/gotchas.md) | Known gotchas of Orca and Claude Code in this setup |
