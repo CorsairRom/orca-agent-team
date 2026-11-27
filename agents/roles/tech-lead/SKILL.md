@@ -159,13 +159,27 @@ OpenCode's worker agent ([providers](../../../docs/providers.md)) and dispatch a
 ## Run
 
 - Process every `worker_done`, `question` and `escalation`. Answer what you can; send product decisions to Ideas
-  and let the developer continue meanwhile. Orca itself sends two kinds of `escalation`
-  (`orca skills get orchestration --full`, "When Orca wakes you"; the subjects and `stopReason` values below were
-  observed on Orca 1.4.258, not quoted from the skill):
-  - with a `stopReason` of `finished`, subject "Worker stopped without reporting": the worker ended its turn
-    without `worker_done`; the Dispatch is still open, and the body ends with its last output and a `worker-read`
-    line. Steer it with `send`, or stop and retry it on the same worktree. `exited` or `lost` means it is gone, so
-    retry it or report it to Ideas.
+  and let the developer continue meanwhile. Orca itself sends `escalation` messages
+  (`orca skills get orchestration --full`, "When Orca wakes you"), each with `taskId`, `dispatchId`, `handle` and a
+  `stopReason` in its payload. Subjects marked (live) were observed on Orca 1.4.280; the others come from its
+  release notes:
+  - "Worker stopped without reporting", `stopReason` `finished` (live): the worker ended its turn without
+    `worker_done`; the Dispatch is still open, and the body ends with its last output and a `worker-read` line.
+    Steer it with `send`, or stop and retry it on the same worktree. Its later idle turns are not reported until
+    you write to it again.
+  - "Worker exited without reporting", `stopReason` `exited` (live): its agent process exited. The Dispatch is
+    still open and a chat worker keeps its history, so a `send` restarts it; otherwise stop and retry it, or report
+    it to Ideas. `lost` means Orca lost the worker: retry it or report it.
+  - "Worker stopped on an error without reporting" (1.4.268): a chat worker's request failed; the body has the
+    error. A usage-limit or quota error is handled as in [providers](#providers); Orca also reports a terminal
+    Claude worker's usage limit, and a terminal worker whose agent exited while its terminal stays open (1.4.271).
+  - "Worker is waiting on the model" (1.4.272): no reply after 10 minutes of model time, after a `status`
+    "Worker is retrying the model API". Wait, or stop it and retry it on another model.
+  - A worker's brief, or its "mailbox notice", "may not have been submitted" (1.4.269, 1.4.280): Orca could not
+    confirm the agent got it. Read the worker with `worker-read` and send the message again.
+  - A worker waiting on its own background task for 20 minutes (1.4.272): read it before you decide.
+  - When a worker you `ask` stopped or can no longer be reached, Orca tells you instead of leaving the question
+    open (1.4.272): ask another worker or decide yourself.
   - with an `approval` (`stopReason` `needs-input`, subject "Worker is waiting for permission"): a permission
     prompt of the worker that only a person can allow. Report it to Ideas at once, with the exact prompt and your
     read on whether it is safe, instead of waiting silently. Never allow it yourself; deny it only when it holds up
