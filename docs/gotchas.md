@@ -119,10 +119,10 @@ A follow-up dispatch stores no start options: `worker-start --retry-of <follow-u
 is refused with `agent_unconfigured`.
 
 **What to do:** send a follow-up to the worker that did the unit, and from then on use the new `dispatchId` of the
-receipt for it; to retry a follow-up dispatch, pass `--agent` (and `--model`, `--effort`). When `send` is refused, or the follow-up needs
-another agent or model, start a new `orca orchestration worker-start --worktree path:<absolute path> ...` on the
-same worktree, without `--name`, `--repo` or `--base-branch`, which Orca refuses for an existing worktree
-(`orca orchestration worker-start --help`).
+receipt for it; to retry a follow-up dispatch, pass `--agent` (and `--model`, `--effort`). When `send` is refused,
+or the follow-up needs another agent or model, start a new
+`orca orchestration worker-start --worktree path:<absolute path> ...` on the same worktree, without `--name`,
+`--repo` or `--base-branch`, which Orca refuses for an existing worktree (`orca orchestration worker-start --help`).
 
 ## Chats and their settings
 

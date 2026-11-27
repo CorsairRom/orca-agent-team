@@ -61,9 +61,9 @@ Steps marked **HUMAN** need the human in the Orca UI.
    that prompt reaches a chat reopened after a reboot is `(unverified)`. **When the token does not come back** to
    Ideas within a few minutes, the human pastes `~/.local/share/acme/tech-lead/resume-prompt.txt` in the
    Tech-lead's tab. Before that, Ideas can see whether the Tech-lead's chat is up without waking it (Orca 1.4.262
-   and later, observed on 1.4.280): `orca agent list --json` lists each agent's `orcaSessionId`, `workspace`,
-   `state` and `lastAssistantMessage`, and `orca agent read <orcaSessionId> --limit 5 --json` reads its last
-   entries. Reading never wakes the agent.
+   and later, observed on 1.4.280): `orca agent list --worktree path:<tech-lead worktree path> --json` lists the
+   agents of that worktree with their `orcaSessionId`, `state` and `lastAssistantMessage`, and
+   `orca agent read <orcaSessionId> --limit 5 --json` reads the last entries. Reading never wakes the agent.
 5. **The Tech-lead runs its checklist as a RESUME:**
    - verifies its identity and checks its Run, as Ideas did; the monitors read the run-id file on every send, so a
      new Run needs no restart;
@@ -100,11 +100,12 @@ confirmed dead (no messages since the restart, no live process). Relaunch on the
 the same task:
 
 ```bash
-orca orchestration worker-start --task <task-id> --retry-of <dispatch-id> --worktree path:<absolute worktree path> --json
+orca orchestration worker-start --task <task-id> --retry-of <dispatch-id> \
+  --worktree path:<absolute worktree path> --json
 ```
 
 (`--retry-of` does not inherit placement, so repeat `--worktree`; the agent defaults from the retried Dispatch, and
 its model and effort carry over as a unit when neither is passed, since Orca 1.4.280, #50091; `orca orchestration
 worker-start --help`, and observed on 1.4.280. A dispatch opened by a follow-up `send` stores no start options, so
-its retry needs `--agent`, `--model` and `--effort`), or as a new task with `--spec` on the same `--worktree path:<absolute worktree path>`,
-without `--name`, `--repo` or `--base-branch`.
+its retry needs `--agent`, `--model` and `--effort`), or as a new task with `--spec` on the same
+`--worktree path:<absolute worktree path>`, without `--name`, `--repo` or `--base-branch`.

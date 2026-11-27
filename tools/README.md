@@ -322,16 +322,16 @@ errors: Orca sends the coordinator its own `escalation` for each, with a `stopRe
   `lost`: Orca lost the worker (`orca skills get orchestration --full`).
 
 The release notes add, untested here: "Worker stopped on an error without reporting" for a chat worker's failed
-request (1.4.268), a terminal Claude worker's usage limit and a terminal agent that exits while its terminal stays
-open (1.4.271), and "Worker is waiting on the model" after 10 minutes without a reply (1.4.272). The Tech-lead
-handles them all as its [Run section](../agents/roles/tech-lead/SKILL.md#run) says.
+request (1.4.268), "Worker hit its usage limit" for a terminal Claude worker and "Worker exited without reporting"
+for a terminal agent that exits while its terminal stays open (1.4.271), and "Worker is waiting on the model" after
+10 minutes without a reply (1.4.272). The Tech-lead handles them all as its
+[Run section](../agents/roles/tech-lead/SKILL.md#run) says.
 
 The watch stays for usage limits: it names the matched limit line, so the Tech-lead knows to dispatch again on
 another provider, and Orca's `finished` escalation shows only the start of the worker's last output (observed on
-1.4.280). A usage-limit
-stop of an OpenCode worker (`provider.free-limit`) was not reproduced on 1.4.280. When a watch notice and an Orca
-escalation arrive for the same dispatch, they are one event. The watch also reports a worker `worker-read` cannot
-read.
+1.4.280). A usage-limit stop of an OpenCode worker (`provider.free-limit`) was not reproduced on 1.4.280. When a
+watch notice and an Orca escalation arrive for the same dispatch, they are one event. The watch also reports a
+worker `worker-read` cannot read.
 
 The watch only sees workers that are alive at a tick. A worker that starts and finishes between two ticks is never
 ticked, and needs no watch: its `worker_done` or Orca's escalation reaches the Tech-lead.

@@ -85,7 +85,10 @@ The settings the human sets in the Orca app; nothing sets them for you. The conf
 - **"Agent Dashboard" on**, for the human: it shows the agents that need input, such as pending permission prompts.
 - **"Resume work on restart" on.** After a crash, a restart or a reboot, Orca resumes the supervised workers it cut
   (Orca 1.4.268 and later), and the tech lead relaunches only the ones it did not resume
-  ([reboot](./reboot.md#reconcile-what-is-alive)). With it off, every worker would need a manual relaunch.
+  ([reboot](./reboot.md#reconcile-what-is-alive)). With it off, every worker cut by a crash or a reboot needs a
+  manual relaunch.
+- **"Automatic updates" off** (Orca 1.4.265 and later, off by default). The team is validated on one Orca version
+  ([README](../README.md#prerequisites)); update Orca on purpose, then check the docs against the new release.
 - **The agent default args are known.** Orca passes them to every worker; when Claude's hold
   `--dangerously-skip-permissions`, Claude workers never prompt and the brief is the only limit
   ([gotchas](./gotchas.md#orca-passes-its-default-args-to-every-worker)).

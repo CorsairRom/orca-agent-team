@@ -120,6 +120,8 @@ and running other commands, such as `env`, `ps` or a `find` over the home direct
 ## Report
 
 End with exactly one `worker_done` (`--outcome succeeded` or `--outcome failed`), a three-sentence body, and a
-report at `--report-path` that follows `<team repo>/agents/templates/worker-report.md`.
+report at `--report-path` that follows `<team repo>/agents/templates/worker-report.md`. After a follow-up reopens
+you, report with `worker_done` on the new Dispatch id; one that names the old Dispatch is refused
+(`dispatch_inactive`).
 
 <!-- Append <team repo>/agents/team-conventions.md below this line. -->
