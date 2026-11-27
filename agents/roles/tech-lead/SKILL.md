@@ -199,8 +199,8 @@ OpenCode's worker agent ([providers](../../../docs/providers.md)) and dispatch a
   integration and hub PRs included ([`tools/README.md`](../../../tools/README.md)). Act on each note on your own
   (remove merged worktrees, fix and answer review comments, release terminals), then report to Ideas.
 - **Worker watch.** It reports the Run's live workers stopped on a usage-limit error, and those it cannot read.
-  Permission prompts and stops without `worker_done` are not its job: they come as Orca's `escalation` messages
-  (above). Handle a usage limit as in [providers](#providers); read an unobservable worker by hand with the
+  Permission prompts, stops and exits without `worker_done`, and request errors are not its job: they come as
+  Orca's `escalation` messages (above). A watch notice and an Orca escalation for the same dispatch are one event. Handle a usage limit as in [providers](#providers); read an unobservable worker by hand with the
   `worker-read` line it sends.
 - **Inventory:** your Run, every worktree, subagent worktree, worker terminal, tmux session, container, database
   and test-data path you open, with where it lives, why, and when it is removed. Update it on every open and every
