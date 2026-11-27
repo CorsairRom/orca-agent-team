@@ -121,8 +121,9 @@ same worktree, without `--name`, `--repo` or `--base-branch`, which Orca refuses
 
 ### Agent sleep must stay off
 
-Orca's "Agent sleep" setting stops idle agents, and mail does not wake a slept agent `(unverified)`. Ideas and the
-Tech-lead are idle most of the time, waiting for mail.
+Orca's "Agent sleep" setting stops idle agents. Ideas and the Tech-lead are idle most of the time, waiting for mail.
+The Orca 1.4.278 notes say a slept agent now looks idle and wakes in place when it is messaged (#44113); that is
+`(unverified)` here, so the setting stays off.
 
 **What to do:** keep "Agent sleep" off in the Orca settings (`orca.agent_sleep: false` in the config).
 
@@ -273,31 +274,40 @@ provider. Some agents persist terminal environments to disk `(unverified)`.
 config references, or in a secret store ([credentials](./setup-guide.md#credentials)). Never export a
 `GITHUB_TOKEN` or a `<PROVIDER>_API_KEY` in a shell profile.
 
-### Orca runs its own Antigravity runtime
+### Antigravity chats run on agy
 
-For `--agent antigravity`, Orca runs its own Antigravity chat runtime, with its own Google sign-in, separate from
-the `agy` CLI. An `agy` login does not sign it in. Two changes since Orca 1.4.245:
+Since Orca 1.4.278 every Antigravity chat runs the `agy` CLI as `agy acp`, the user's own `agy` or Orca's copy
+where there is none; Orca's separate Antigravity runtime and its own Google sign-in are gone (stablyai/orca PR
+#48305). Orca's Sign in runs `agy acp --login`, so it signs `agy` itself in. The saved sign-in method picks the
+home: a Google account uses `agy`'s own home and login, `~/.gemini`; a Gemini API key, Gemini Enterprise or gcloud
+runs `agy` on a home Orca owns (`--gemini-dir`). Since 1.4.252 an Antigravity worker that runs `agy` in a terminal
+fails at once with `Agent startup blocked: agent-sign-in-prompt` when `agy` is signed out (PR #38901).
 
-- Since 1.4.254 a new Antigravity chat runs on the machine's own `agy acp`, with `agy`'s home `~/.gemini`, when
-  nobody is signed in to Orca's Antigravity and `agy` itself is signed in (stablyai/orca PRs #39006 and #39452).
-  Users already signed in to Orca's Antigravity are never moved.
-- Since 1.4.252 an Antigravity worker that runs the `agy` CLI in a terminal fails at once with
-  `Agent startup blocked: agent-sign-in-prompt` when `agy` is signed out (PR #38901).
-
-Which of the two runtimes a `worker-start --agent antigravity` gets on Orca 1.4.258 is `(unverified)`.
+Observed on Orca 1.4.280 with a Google account: a `worker-start --agent antigravity` worker ran
+`agy acp --dangerously-skip-permissions` with the user's `HOME` and no `--gemini-dir`.
 
 **What to do:** sign in once in Orca before the first Antigravity chat, a HUMAN step
 ([Antigravity setup](./providers.md#antigravity-setup)). A worker that fails with `agent-sign-in-prompt` needs
 `agy` itself signed in on the machine.
 
-### Antigravity reads MCP servers from Orca's runtime home
+### Antigravity reads MCP servers from agy's home
 
-Orca's Antigravity runtime runs with `GEMINI_HOME=<orca config>/antigravity-chat` and reads MCP servers from
-`<orca config>/antigravity-chat/config/mcp_config.json`. `agy mcp add` writes under `~/.gemini`, which this runtime
-does not read. A running session loads a changed file only after a restart.
+With a Google-account sign-in, an Antigravity worker reads MCP servers from `~/.gemini/config/mcp_config.json`, the
+file `agy mcp add` writes (observed on Orca 1.4.280 and `agy` 1.5.18: its log names `~/.gemini/antigravity-cli` as
+its data directory, `agy` ignores `GEMINI_HOME` and follows `HOME`). Before Orca 1.4.278 Orca's own runtime read
+`<orca config>/antigravity-chat/config/mcp_config.json`; nothing reads that file now. Which file `agy` reads on a
+home Orca owns (API key, Enterprise, gcloud) is `(unverified)`. A running session loads a changed file only after a
+restart.
 
-**What to do:** write the Engram server into that file, with the absolute path of `engram`, then restart the
-session ([Antigravity setup](./providers.md#antigravity-setup)).
+**What to do:** add the Engram server with `agy mcp add`, with the absolute path of `engram`, check it with
+`agy mcp list`, then restart the session ([Antigravity setup](./providers.md#antigravity-setup)).
+
+### Mail reaches a busy Antigravity worker only after its turn
+
+Since Orca 1.4.268 mail to a busy Antigravity chat is held until its turn ends, while Claude gets it mid-turn
+(stablyai/orca PR #45370, release notes). A correction sent to an Antigravity worker that is still working waits.
+
+**What to do:** expect the delay; to stop a wrong Antigravity turn at once, stop the worker and retry it.
 
 ### Antigravity model ids carry the effort
 
