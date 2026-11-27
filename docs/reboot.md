@@ -60,7 +60,10 @@ Steps marked **HUMAN** need the human in the Orca UI.
    Ideas' message prompts it ([gotchas](./gotchas.md#orca-prompts-an-idle-chat-when-its-run-gets-mail)); whether
    that prompt reaches a chat reopened after a reboot is `(unverified)`. **When the token does not come back** to
    Ideas within a few minutes, the human pastes `~/.local/share/acme/tech-lead/resume-prompt.txt` in the
-   Tech-lead's tab.
+   Tech-lead's tab. Before that, Ideas can see whether the Tech-lead's chat is up without waking it (Orca 1.4.262
+   and later, observed on 1.4.280): `orca agent list --json` lists each agent's `orcaSessionId`, `workspace`,
+   `state` and `lastAssistantMessage`, and `orca agent read <orcaSessionId> --limit 5 --json` reads its last
+   entries. Reading never wakes the agent.
 5. **The Tech-lead runs its checklist as a RESUME:**
    - verifies its identity and checks its Run, as Ideas did; the monitors read the run-id file on every send, so a
      new Run needs no restart;

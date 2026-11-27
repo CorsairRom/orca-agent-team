@@ -42,7 +42,8 @@ and `run-current` shows the Run bound to the calling coordinator (`orca orchestr
   coordinating a Run"; a worker "cannot bind its own or ancestor Run", `run-use --help`). The Run's coordinator
   moves to the caller and its `consumer_generation` goes up; the previous coordinator's `run-current` returns
   `null`, its `check` is refused the same way, and it can take the Run back with `run-use` in turn;
-- `orca orchestration inbox --terminal run:<run_id>` reads a Run's mail from any session.
+- `orca orchestration inbox --terminal run:<run_id>` reads a Run's coordinator mail from any session, and
+  `inbox --run <run_id>` also the mail to its workers (Orca 1.4.261 and later, observed on 1.4.280).
 
 Whether a session that is not bound can still dispatch under the Run is `(unverified)`. A subagent's shell inherits
 its parent's identity, so a subagent that runs `run-create` creates a Run of its parent `(unverified)`.

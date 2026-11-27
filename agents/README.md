@@ -250,7 +250,9 @@ once the chat accepts it. A terminal agent, or a message too large for a chat me
      marking them.
 - **Lost track** (after a compaction, a crash, or a `check` whose output was lost):
   `orca orchestration inbox --terminal run:<own run id> --limit 50 --full` lists the mail already handled, newest
-  first. A lost `check` response comes back whole with the `--retry-request <id>` that `check` printed.
+  first. A lost `check` response comes back whole with the `--retry-request <id>` that `check` printed. To see
+  the mail the Run's workers got too, use `--run <own run id>` instead of `--terminal run:<own run id>` (Orca
+  1.4.261 and later); a follow-up `send` to a finished worker becomes a Task, not mail, and shows in neither.
 
 No flag is needed to acknowledge: on Orca 1.4.246 a plain `check` returns the Run's oldest unread batch and marks it
 handled ([gotchas](../docs/gotchas.md#a-plain-check-marks-its-batch-handled)). `<own run id>` is

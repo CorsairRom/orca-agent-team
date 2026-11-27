@@ -235,12 +235,13 @@ The alive check must carry the Tech-lead's identity. Compare its sender with the
 orca orchestration inbox --limit 100 --json | jq -c --arg tl "run:$(cat "$TECH_LEAD_RUN_ID_FILE")" --arg ideas "run:$(cat "$IDEAS_RUN_ID_FILE")" '.result.messages as $m | [first($m[] | select(.to == $tl and (.subject | startswith("[PR monitor] alive check")))), first($m[] | select(.to == $ideas and (.subject | startswith("[Tech-lead] ready"))))] | map({id, from, subject})'
 ```
 
-On Orca 1.4.246 `inbox` lists the messages under `.result.messages`, newest first, and holds the mail of every Run on
-the Orca. Each message carries `id`, `type`, `from`, `to` (`run:<run id>`), `subject`, `handled` and `body`. The query
-takes the newest alive check sent to the Tech-lead's Run and the newest `[Tech-lead] ready` sent to Ideas' Run, so
-another team's mail does not show. With `--full` each row is Orca's stored record instead (observed on 1.4.258):
-`from_handle` and `to_handle` in place of `from` and `to`, `read` in place of `handled`, and `payload` as a JSON
-string, among other fields.
+Since Orca 1.4.246 `inbox` lists the messages under `.result.messages`, newest first, and, without `--terminal` or
+`--run`, holds the mail of every Run on the Orca. Each message carries `id`, `type`, `from`, `to` (`run:<run id>`),
+`subject`, `handled`, `body` and `payload` (observed on 1.4.280). The query takes the newest alive check sent to
+the Tech-lead's Run and the newest `[Tech-lead] ready` sent to Ideas' Run, so another team's mail does not show.
+With `--full` each row is Orca's stored record instead (observed on 1.4.258 and 1.4.280): `from_handle` and
+`to_handle` in place of `from` and `to`, `read` in place of `handled`, and `payload` as a JSON string, among other
+fields.
 
 Expected: one line each, with the same `from`. For a chat it is `orca_session_id:<its ORCA_AGENT_SESSION_ID>`, which
 `echo "$ORCA_AGENT_SESSION_ID"` prints in the Tech-lead's chat (observed on Orca 1.4.258). Another sender means the
