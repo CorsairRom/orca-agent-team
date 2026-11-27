@@ -59,7 +59,7 @@ refers to this table for versions.
 
 | Need | Minimum version | Check | Notes |
 | --- | --- | --- | --- |
-| Orca desktop app and its `orca` CLI | **1.4.258** | `orca --version` | Idle chat agents stop "Never", "Agent sleep" off, "Agent Dashboard" on, "Resume work on restart" on ([setup guide](./docs/setup-guide.md#orca-settings)) |
+| Orca desktop app and its `orca` CLI | **1.4.280** | `orca --version` | Idle chat agents stop "Never", "Agent sleep" off, "Agent Dashboard" on, "Resume work on restart" on ([setup guide](./docs/setup-guide.md#orca-settings)) |
 | Claude Code | any current release | `claude --version` | Logged in. Ideas, the Tech-lead and the workers are Claude Code sessions |
 | `git` | any current release | `git --version` | Local clones of every repository in the config |
 | GitHub CLI `gh` | any current release | `gh --version`; `gh auth status` | Logged in, with access to every repository in the config. The PR monitor uses it |

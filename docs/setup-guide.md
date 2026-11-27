@@ -80,8 +80,8 @@ The settings the human sets in the Orca app; nothing sets them for you. The conf
 - **Idle chat agents stop: "Never".** Ideas and the Tech-lead wait idle for mail, so Orca must not stop their
   process ([gotchas](./gotchas.md#the-chat-ui-stops-an-idle-chat)). The setting exists since Orca 1.4.249; its exact
   label and place are `(unverified)`.
-- **"Agent sleep" off.** Ideas and the Tech-lead wait idle for mail, and mail does not wake a slept agent
-  `(unverified)` ([gotchas](./gotchas.md#agent-sleep-must-stay-off)).
+- **"Agent sleep" off.** Ideas and the Tech-lead wait idle for mail; whether mail wakes a slept agent is
+  `(unverified)` here ([gotchas](./gotchas.md#agent-sleep-must-stay-off)).
 - **"Agent Dashboard" on**, for the human: it shows the agents that need input, such as pending permission prompts.
 - **"Resume work on restart" on.** After a crash, a restart or a reboot, Orca resumes the supervised workers it cut
   (Orca 1.4.268 and later), and the tech lead relaunches only the ones it did not resume
