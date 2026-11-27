@@ -294,6 +294,11 @@ orca orchestration worker-start \
   `orca orchestration worker-release --dispatch <dispatch-id>` when the feature closes.
 - **Answering workers.** A question: `orca orchestration reply --id <msg-id> --body "$(cat <file>)"`. A note to a
   live worker: `orca orchestration send --to dispatch:<dispatch-id> --subject "..." --body "$(cat <file>)"`.
+- **Progress notes.** A worker records progress that needs no answer with
+  `orca orchestration task-update --note "<at most 500 characters>"` (Orca 1.4.280): it never wakes the tech lead,
+  while `send`, `ask` and `worker_done` always do. Read the latest note with
+  `orca orchestration worker-show --dispatch <dispatch-id> --json`, as `.result.progress` and
+  `.result.progressUpdatedAt` (with `--full`: `.result.dispatch.progressNote`; observed on 1.4.280).
 - **Orca has no merge command:** `merge_ready` is only a message. Merges follow the configured
   [delivery](#delivery).
 - **Monitors.** Before the first PR of a feature, the PR monitor and the worker watch run in the tmux sessions

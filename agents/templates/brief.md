@@ -99,7 +99,7 @@ and running other commands, such as `env`, `ps` or a `find` over the home direct
 - **Files you may read:** `<exact paths>`
 - **Files you may write:** `<exact paths, or "none" for an explore unit>`
 - **Commands you may run:** `<each exact command>`, and the `orca orchestration` commands of your dispatch
-  (`ask`, `worker_done`)
+  (`ask`, `task-update --note`, `worker_done`)
 - **Staging and committing:** <"forbidden: leave the change in the worktree; the tech lead commits it after
   review" · or "allowed: `git add <exact paths>`, then one `git commit` with a Conventional Commit message">
 - **Pushing and pull requests:** <"forbidden" · or "allowed: `git push origin <branch>`, no force; open the PR
@@ -112,6 +112,8 @@ and running other commands, such as `env`, `ps` or a `find` over the home direct
 
 - A reversible decision: assume it, keep going, and report it.
 - A product decision: `orca orchestration ask`, and continue with what does not depend on it.
+- Progress that needs no answer, such as a finished step: `orca orchestration task-update --note "<at most 500
+  characters>"`. It never wakes the tech lead; never use `ask` or a message for it.
 - Blocked on the same thing for longer than the limit in `<team repo>/agents/README.md`, section "Template
   defaults", or the team conventions above: ask.
 
