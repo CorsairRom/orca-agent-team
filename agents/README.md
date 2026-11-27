@@ -250,7 +250,9 @@ once the chat accepts it. A terminal agent, or a message too large for a chat me
      marking them.
 - **Lost track** (after a compaction, a crash, or a `check` whose output was lost):
   `orca orchestration inbox --terminal run:<own run id> --limit 50 --full` lists the mail already handled, newest
-  first. A lost `check` response comes back whole with the `--retry-request <id>` that `check` printed.
+  first. A lost `check` response comes back whole with the `--retry-request <id>` that `check` printed. To see
+  the mail the Run's workers got too, use `--run <own run id>` instead of `--terminal run:<own run id>` (Orca
+  1.4.261 and later); a follow-up `send` to a finished worker becomes a Task, not mail, and shows in neither.
 
 No flag is needed to acknowledge: on Orca 1.4.246 a plain `check` returns the Run's oldest unread batch and marks it
 handled ([gotchas](../docs/gotchas.md#a-plain-check-marks-its-batch-handled)). `<own run id>` is
@@ -292,6 +294,11 @@ orca orchestration worker-start \
   `orca orchestration worker-release --dispatch <dispatch-id>` when the feature closes.
 - **Answering workers.** A question: `orca orchestration reply --id <msg-id> --body "$(cat <file>)"`. A note to a
   live worker: `orca orchestration send --to dispatch:<dispatch-id> --subject "..." --body "$(cat <file>)"`.
+- **Progress notes.** A worker records progress that needs no answer with
+  `orca orchestration task-update --note "<at most 500 characters>"` (Orca 1.4.280): it never wakes the tech lead,
+  while `send`, `ask` and `worker_done` always do. Read the latest note with
+  `orca orchestration worker-show --dispatch <dispatch-id> --json`, as `.result.progress` and
+  `.result.progressUpdatedAt` (with `--full`: `.result.dispatch.progressNote`; observed on 1.4.280).
 - **Orca has no merge command:** `merge_ready` is only a message. Merges follow the configured
   [delivery](#delivery).
 - **Monitors.** Before the first PR of a feature, the PR monitor and the worker watch run in the tmux sessions

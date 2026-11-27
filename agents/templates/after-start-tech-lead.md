@@ -154,7 +154,11 @@ Shell variables do not survive between Bash calls, so load it in each block. It 
 - Reach Ideas only with `orca orchestration send --to "run:$(cat "$IDEAS_RUN_ID_FILE")"`, subject prefix
   `[Tech-lead]`, body from a file. Never `orca terminal send` to another agent.
 - Workers run under your Run with `orca orchestration worker-start ... --worktree new-child`; their mail arrives in
-  the same mailbox. After `worker_done` a follow-up needs a new `worker-start --worktree path:<absolute path>`.
+  the same mailbox. After `worker_done`, a follow-up goes to the same worker with `send --to dispatch:<dispatch-id>`,
+  which reopens it under a new dispatch id
+  ([gotchas](../../docs/gotchas.md#a-finished-worker-takes-a-follow-up-through-send)); a new
+  `worker-start --worktree path:<absolute path>` only when `send` is refused or the follow-up needs another agent or
+  model.
 - Every brief carries the team's `conventions:`, the lines of `$CONVENTIONS_FILE`
   ([`tools/README.md`](../../tools/README.md#writing-the-env-file)); a new project has none.
 - A `[Bootstrap]` message comes from the chat that installed the team; do what it asks.

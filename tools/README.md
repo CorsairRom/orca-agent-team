@@ -235,12 +235,13 @@ The alive check must carry the Tech-lead's identity. Compare its sender with the
 orca orchestration inbox --limit 100 --json | jq -c --arg tl "run:$(cat "$TECH_LEAD_RUN_ID_FILE")" --arg ideas "run:$(cat "$IDEAS_RUN_ID_FILE")" '.result.messages as $m | [first($m[] | select(.to == $tl and (.subject | startswith("[PR monitor] alive check")))), first($m[] | select(.to == $ideas and (.subject | startswith("[Tech-lead] ready"))))] | map({id, from, subject})'
 ```
 
-On Orca 1.4.246 `inbox` lists the messages under `.result.messages`, newest first, and holds the mail of every Run on
-the Orca. Each message carries `id`, `type`, `from`, `to` (`run:<run id>`), `subject`, `handled` and `body`. The query
-takes the newest alive check sent to the Tech-lead's Run and the newest `[Tech-lead] ready` sent to Ideas' Run, so
-another team's mail does not show. With `--full` each row is Orca's stored record instead (observed on 1.4.258):
-`from_handle` and `to_handle` in place of `from` and `to`, `read` in place of `handled`, and `payload` as a JSON
-string, among other fields.
+Since Orca 1.4.246 `inbox` lists the messages under `.result.messages`, newest first, and, without `--terminal` or
+`--run`, holds the mail of every Run on the Orca. Each message carries `id`, `type`, `from`, `to` (`run:<run id>`),
+`subject`, `handled`, `body` and `payload` (observed on 1.4.280). The query takes the newest alive check sent to
+the Tech-lead's Run and the newest `[Tech-lead] ready` sent to Ideas' Run, so another team's mail does not show.
+With `--full` each row is Orca's stored record instead (observed on 1.4.258 and 1.4.280): `from_handle` and
+`to_handle` in place of `from` and `to`, `read` in place of `handled`, and `payload` as a JSON string, among other
+fields.
 
 Expected: one line each, with the same `from`. For a chat it is `orca_session_id:<its ORCA_AGENT_SESSION_ID>`, which
 `echo "$ORCA_AGENT_SESSION_ID"` prints in the Tech-lead's chat (observed on Orca 1.4.258). Another sender means the
@@ -307,23 +308,30 @@ keeps the cursor of the last page it read, because the cursor after the newest p
   with `[worker watch] <dispatch-id> cannot be observed (worker-read failed)` and the `worker-read` line to read it
   by hand.
 
-It does not look for permission prompts or for workers that stopped without `worker_done`: Orca sends the
-coordinator its own `escalation` for both, with a `stopReason` in its payload; the first two values below were
-observed on Orca 1.4.258:
+It does not look for permission prompts, for workers that stopped or exited without `worker_done`, or for request
+errors: Orca sends the coordinator its own `escalation` for each, with a `stopReason` in its payload:
 
-- `finished`: the worker ended its turn without `worker_done` (subject "Worker stopped without reporting"). The
-  Dispatch is still open, and the body ends with the worker's last output and a `worker-read` line.
-- `needs-input`, with an `approval`: a prompt only a person can allow (subject "Worker is waiting for permission").
-  Once it is answered, Orca sends a `status` "Worker approval answered" with the decision; a deny reason goes to the
-  worker as a message.
-- `exited` or `lost`: the worker is gone (`orca skills get orchestration --full`).
+- `finished`: the worker ended its turn without `worker_done` (subject "Worker stopped without reporting"; observed
+  on Orca 1.4.258 and 1.4.280). The Dispatch is still open, and the body ends with the worker's last output and a
+  `worker-read` line.
+- `needs-input`, with an `approval`: a prompt only a person can allow (subject "Worker is waiting for permission";
+  observed on 1.4.258). Once it is answered, Orca sends a `status` "Worker approval answered" with the decision; a
+  deny reason goes to the worker as a message.
+- `exited`: the agent process exited (subject "Worker exited without reporting"; observed on 1.4.280, one second
+  after the process was killed). The Dispatch stays open and a `send` restarts a chat worker with its history.
+  `lost`: Orca lost the worker (`orca skills get orchestration --full`).
 
-The Tech-lead handles them as its [Run section](../agents/roles/tech-lead/SKILL.md#run) says. A usage-limit stop
-was not seen in that check: since a stop without `worker_done` raises the `finished` escalation with the last
-output, a worker stopped on a usage limit probably arrives that way, with the error in its last output
-`(unverified)`. This watch still reports usage-limit errors, with the matched line, and a worker `worker-read`
-cannot read. An agent that dies while its terminal stays open may raise no escalation, and this watch sees it only
-when the terminal shows a usage-limit line.
+The release notes add, untested here: "Worker stopped on an error without reporting" for a chat worker's failed
+request (1.4.268), "Worker hit its usage limit" for a terminal Claude worker and "Worker exited without reporting"
+for a terminal agent that exits while its terminal stays open (1.4.271), and "Worker is waiting on the model" after
+10 minutes without a reply (1.4.272). The Tech-lead handles them all as its
+[Run section](../agents/roles/tech-lead/SKILL.md#run) says.
+
+The watch stays for usage limits: it names the matched limit line, so the Tech-lead knows to dispatch again on
+another provider, and Orca's `finished` escalation shows only the start of the worker's last output (observed on
+1.4.280). A usage-limit stop of an OpenCode worker (`provider.free-limit`) was not reproduced on 1.4.280. When a
+watch notice and an Orca escalation arrive for the same dispatch, they are one event. The watch also reports a
+worker `worker-read` cannot read.
 
 The watch only sees workers that are alive at a tick. A worker that starts and finishes between two ticks is never
 ticked, and needs no watch: its `worker_done` or Orca's escalation reaches the Tech-lead.

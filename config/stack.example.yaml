@@ -119,7 +119,7 @@ providers:
 orca:
   # Chat UI: both chats run as Orca chats. Orca 1.4.246 and later have no switch for it; set idle chat agents to stop "Never".
   chat_ui: true
-  # Agent sleep OFF: mail does not wake a slept agent, so a slept coordinator would miss its mailbox.
+  # Agent sleep OFF: whether mail wakes a slept agent is unverified, and a slept coordinator would miss its mailbox.
   agent_sleep: false
   # Agent Dashboard ON: recommended for the human who watches the team.
   agent_dashboard: true

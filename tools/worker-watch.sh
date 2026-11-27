@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Every N seconds, checks each live supervised worker of a Run for a stop on a usage-limit error, and tells the Tech-lead once per error, in the mailbox of its Orca Run. It never approves anything.
 # On every tick it reads each worker's newest rows (worker-read --source auto), and it reports once a worker it cannot read at all.
-# Permission prompts and stops without worker_done are not its job: Orca sends the coordinator its own escalation messages for them.
+# Permission prompts, stops and exits without worker_done, and request errors are not its job: Orca sends the coordinator its own escalation messages for them.
 # Usage: worker-watch.sh [<run_id> [interval_seconds]]   watch until killed (run it in tmux)
 #        worker-watch.sh --once [<run_id>]                one tick printed to stdout; sends and records nothing
 #        worker-watch.sh --help                           print this help and exit

@@ -8,6 +8,8 @@ Everything here is checked on Orca 1.4.245, Antigravity `agy` 1.4.2 and OpenCode
 marked `(unverified)`. Points that name a later Orca version come from that version's `--help` and release notes;
 the smoke test has not been run again on Orca 1.4.258. Three points were observed on Orca 1.4.258 with OpenCode
 2.3.0: the escalation of an `ask` rule, a follow-up `send` to a finished worker, and the OpenCode model at launch.
+The Antigravity setup below was observed again on Orca 1.4.280 with `agy` 1.5.18: an Antigravity worker on `agy`
+with its Engram tools.
 The gotchas behind each step are in [gotchas](./gotchas.md#other-providers).
 
 ## When the team uses them
@@ -46,25 +48,21 @@ may use yourself.
 
 ### Antigravity setup
 
-1. **HUMAN:** in Orca, sign in to Antigravity with a Google account, before the first Antigravity chat. Orca's
-   runtime has its own sign-in; an `agy` login on the machine does not carry over. Without it, since Orca 1.4.254,
-   a new Antigravity chat may run on the machine's own `agy acp` instead, when `agy` itself is signed in
-   ([gotchas](./gotchas.md#orca-runs-its-own-antigravity-runtime)); that chat does not read the MCP file of step 3.
+1. **HUMAN:** in Orca, sign in to Antigravity with a Google account, before the first Antigravity chat. Since Orca
+   1.4.278 every Antigravity chat runs the `agy` CLI (`agy acp`), and Orca's Sign in signs `agy` itself in; with a
+   Google account `agy` keeps its own home, `~/.gemini` ([gotchas](./gotchas.md#antigravity-chats-run-on-agy)).
 2. **HUMAN:** check Orca's permission setting for Antigravity. Its default is full access: nothing stops a write
-   or a command. The brief is then the only limit, so it lists the exact files and commands allowed.
-3. Give the runtime the Engram MCP server. Orca runs it with `GEMINI_HOME=<orca config>/antigravity-chat`, and it
-   reads MCP servers from `<orca config>/antigravity-chat/config/mcp_config.json`, not from `~/.gemini`, where
-   `agy mcp add` writes. Write that file with the absolute path of `engram` (`command -v engram`):
+   or a command, and on Orca 1.4.280 Orca's default args for Antigravity hold `--dangerously-skip-permissions`. The
+   brief is then the only limit, so it lists the exact files and commands allowed.
+3. Give `agy` the Engram MCP server, with the absolute path of `engram`:
 
-   ```json
-   {
-     "mcpServers": {
-       "engram": { "command": "<absolute path to engram>", "args": ["mcp", "--tools=agent"] }
-     }
-   }
+   ```bash
+   agy mcp add engram "$(command -v engram)" mcp --tools=agent
+   agy mcp list
    ```
 
-   A running Antigravity session loads it only after a restart.
+   Expected: `agy mcp list` names `engram`. `agy mcp add` writes `~/.gemini/config/mcp_config.json`, the file an
+   Antigravity worker reads on Orca 1.4.280. A running Antigravity session loads it only after a restart.
 
 ### Start an Antigravity worker
 
