@@ -27,18 +27,25 @@ With several [teams](../tools/README.md#teams), run the procedure once per team,
 - The two monitor tmux sessions.
 - Everything under `/tmp`. Nothing of this setup lives there.
 
+What Orca resumes: with **Resume work on restart** on ([settings](./setup-guide.md#orca-settings)), Orca continues
+a chat worker cut by a crash or a restart once it is back, at most 3 continuations per 5 minutes (1.4.268, #43918),
+and resumes terminal workers lost to a reboot or a terminal-daemon crash (1.4.272, #46643). It does not stand in
+for the steps below: the coordinators' own chats still need the human `(unverified)`.
+
 What survives: the worktrees, the transcripts under `~/.claude/projects/`, the local-share tree with the run-id
 files, the resume prompts and the briefs, the Engram memory, and the Runs. Whether a Run stays usable after a full
 reboot is `(unverified)`: step 2 of each checklist checks it with `orca orchestration run-current`, takes it back
 with `orca orchestration run-use --id` when the chat is no longer bound to it, and creates a new one only when that
-is refused.
+is refused. Orca deletes a settled Run, one with nothing live in it, 24 hours after its last activity once every
+coordinator handle, `run:` mailbox, session and pane of it is gone (1.4.262, #43322), so after a long shutdown the
+run-id file can name a Run that no longer exists; the checklist then creates a new one.
 
 ### The procedure
 
 Steps marked **HUMAN** need the human in the Orca UI.
 
 1. **HUMAN — start Orca** and check its [settings](./setup-guide.md#orca-settings) are unchanged: idle chat agents
-   stop "Never", "Agent sleep" off, "Agent Dashboard" on.
+   stop "Never", "Agent sleep" off, "Agent Dashboard" on, "Resume work on restart" on.
 2. **HUMAN — reopen the Ideas chat** in the hub's Ideas worktree, from Orca's agent session history, so it resumes
    the same Claude session. Then paste the content of `~/.local/share/acme/ideas/resume-prompt.txt` **in that same
    tab**.
@@ -83,15 +90,17 @@ The last line needs bash, so it runs as `bash -c '...'` whatever the chat's shel
 Also `ls` every path the inventory records. Everything recorded but not alive is reported to Ideas: dead workers,
 missing worktrees, files lost from `/tmp`.
 
-A supervised worker may survive an Orca restart `(unverified)`. Before relaunching one, read the mailbox and
+Orca resumes the supervised workers a restart cut (above), so relaunch only the ones it did not resume: relaunching
+a worker Orca already resumed runs the same task twice. Before relaunching one, read the mailbox and
 `orca orchestration worker-show --dispatch <dispatch-id> --json`, and relaunch only when the old dispatch is
-confirmed dead (no messages, no live process). Relaunch on the same worktree, either as a retry of the same task:
+confirmed dead (no messages since the restart, no live process). Relaunch on the same worktree, either as a retry of
+the same task:
 
 ```bash
-orca orchestration worker-start --task <task-id> --retry-of <dispatch-id> --worktree path:<absolute worktree path> \
-  --agent claude --model <model> --effort <effort> --json
+orca orchestration worker-start --task <task-id> --retry-of <dispatch-id> --worktree path:<absolute worktree path> --json
 ```
 
-(`--retry-of` does not inherit placement, so repeat `--worktree` and `--agent`; `orca orchestration worker-start
---help`), or as a new task with `--spec` on the same `--worktree path:<absolute worktree path>`, without `--name`,
-`--repo` or `--base-branch`.
+(`--retry-of` does not inherit placement, so repeat `--worktree`; the agent defaults from the retried Dispatch, and
+its model and effort carry over as a unit when neither is passed, since Orca 1.4.280, #50091; `orca orchestration
+worker-start --help`), or as a new task with `--spec` on the same `--worktree path:<absolute worktree path>`,
+without `--name`, `--repo` or `--base-branch`.

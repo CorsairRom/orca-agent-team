@@ -59,7 +59,7 @@ refers to this table for versions.
 
 | Need | Minimum version | Check | Notes |
 | --- | --- | --- | --- |
-| Orca desktop app and its `orca` CLI | **1.4.258** | `orca --version` | Idle chat agents stop "Never", "Agent sleep" off, "Agent Dashboard" on ([setup guide](./docs/setup-guide.md#orca-settings)) |
+| Orca desktop app and its `orca` CLI | **1.4.258** | `orca --version` | Idle chat agents stop "Never", "Agent sleep" off, "Agent Dashboard" on, "Resume work on restart" on ([setup guide](./docs/setup-guide.md#orca-settings)) |
 | Claude Code | any current release | `claude --version` | Logged in. Ideas, the Tech-lead and the workers are Claude Code sessions |
 | `git` | any current release | `git --version` | Local clones of every repository in the config |
 | GitHub CLI `gh` | any current release | `gh --version`; `gh auth status` | Logged in, with access to every repository in the config. The PR monitor uses it |
@@ -76,8 +76,8 @@ setup ([providers](./docs/providers.md)).
 
 ## Install
 
-1. **HUMAN:** in the Orca app's settings, set idle chat agents to stop **Never**, "Agent sleep" **off** and
-   "Agent Dashboard" **on** ([Orca settings](./docs/setup-guide.md#orca-settings)).
+1. **HUMAN:** in the Orca app's settings, set idle chat agents to stop **Never**, "Agent sleep" **off**,
+   "Agent Dashboard" **on** and "Resume work on restart" **on** ([Orca settings](./docs/setup-guide.md#orca-settings)).
 2. Open a new Claude Code chat in any Orca workspace (a folder workspace works too) and paste this prompt, with
    `<owner>` set to the GitHub account you install from (this repository's owner, or your fork):
 

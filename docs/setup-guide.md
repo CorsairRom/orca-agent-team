@@ -83,6 +83,9 @@ The settings the human sets in the Orca app; nothing sets them for you. The conf
 - **"Agent sleep" off.** Ideas and the Tech-lead wait idle for mail, and mail does not wake a slept agent
   `(unverified)` ([gotchas](./gotchas.md#agent-sleep-must-stay-off)).
 - **"Agent Dashboard" on**, for the human: it shows the agents that need input, such as pending permission prompts.
+- **"Resume work on restart" on.** After a crash, a restart or a reboot, Orca resumes the supervised workers it cut
+  (Orca 1.4.268 and later), and the tech lead relaunches only the ones it did not resume
+  ([reboot](./reboot.md#reconcile-what-is-alive)). With it off, every worker would need a manual relaunch.
 - **The agent default args are known.** Orca passes them to every worker; when Claude's hold
   `--dangerously-skip-permissions`, Claude workers never prompt and the brief is the only limit
   ([gotchas](./gotchas.md#orca-passes-its-default-args-to-every-worker)).
