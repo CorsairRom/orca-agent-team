@@ -102,5 +102,6 @@ orca orchestration worker-start --task <task-id> --retry-of <dispatch-id> --work
 
 (`--retry-of` does not inherit placement, so repeat `--worktree`; the agent defaults from the retried Dispatch, and
 its model and effort carry over as a unit when neither is passed, since Orca 1.4.280, #50091; `orca orchestration
-worker-start --help`), or as a new task with `--spec` on the same `--worktree path:<absolute worktree path>`,
+worker-start --help`, and observed on 1.4.280. A dispatch opened by a follow-up `send` stores no start options, so
+its retry needs `--agent`, `--model` and `--effort`), or as a new task with `--spec` on the same `--worktree path:<absolute worktree path>`,
 without `--name`, `--repo` or `--base-branch`.

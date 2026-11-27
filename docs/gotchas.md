@@ -111,8 +111,14 @@ worker was still live, or `"delivery":"reopened"` when it was already released, 
 id>"` and a new `taskId` and `dispatchId`. Later mail to the worker goes to the new dispatch id. A reopened Claude
 worker resumed the same session on the same model and sent `worker_done` again.
 
+Observed on Orca 1.4.280: the reopened worker must report on the new dispatch. A `worker_done` that names the old
+one is refused with `dispatch_inactive` ("Dispatch <old id> ... is already completed. Your open Dispatch is <new
+id>"), and nothing is sent (PR #49221). Orca also reopens a finished chat worker whose tab was closed (PR #47914).
+A follow-up dispatch stores no start options: `worker-start --retry-of <follow-up dispatch id>` without `--agent`
+is refused with `agent_unconfigured`.
+
 **What to do:** send a follow-up to the worker that did the unit, and from then on use the new `dispatchId` of the
-receipt for it. When `send` is refused, or the follow-up needs
+receipt for it; to retry a follow-up dispatch, pass `--agent` (and `--model`, `--effort`). When `send` is refused, or the follow-up needs
 another agent or model, start a new `orca orchestration worker-start --worktree path:<absolute path> ...` on the
 same worktree, without `--name`, `--repo` or `--base-branch`, which Orca refuses for an existing worktree
 (`orca orchestration worker-start --help`).
